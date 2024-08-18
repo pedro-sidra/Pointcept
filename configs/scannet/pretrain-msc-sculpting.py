@@ -82,11 +82,12 @@ data = dict(
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
+            dict(type="SculptingOcclude"),
             dict(type="RandomScale", scale=[0.9, 1.1]),
             dict(type="Copy", keys_dict={"coord": "original_coord"}),
             dict(
                 type="ContrastiveViewsGenerator",
-                view_keys=("coord", "color", "normal", "original_coord"),
+                view_keys=("coord", "color", "normal", "segment", "original_coord"),
                 view_trans_cfg=[
                     dict(
                         type="RandomRotate",
@@ -113,7 +114,7 @@ data = dict(
                         grid_size=0.02,
                         hash_type="fnv",
                         mode="train",
-                        keys=("original_coord", "coord", "color", "normal"),
+                        keys=("original_coord", "coord", "color", "normal", "segment"),
                         return_grid_coord=True,
                     ),
                     dict(type="SphereCrop", sample_rate=0.6, mode="random"),
@@ -130,11 +131,13 @@ data = dict(
                     "view1_coord",
                     "view1_color",
                     "view1_normal",
+                    "view1_segment",
                     "view2_original_coord",
                     "view2_grid_coord",
                     "view2_coord",
                     "view2_color",
                     "view2_normal",
+                    "view2_segment",
                 ),
                 offset_keys_dict=dict(
                     view1_offset="view1_coord", view2_offset="view2_coord"
