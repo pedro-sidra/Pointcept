@@ -17,7 +17,10 @@ import numpy as np
 import torch
 import copy
 from collections.abc import Sequence, Mapping
-from pointcept.datasets.sculpting import add_random_cubes
+from pointcept.datasets.sculpting import (
+    add_random_cubes,
+    get_random_cubes_random_sampled_point_references,
+)
 
 
 from pointcept.utils.registry import Registry
@@ -1152,8 +1155,64 @@ class Compose(object):
 
 @TRANSFORMS.register_module()
 class SculptingOcclude(object):
-    def __init__(self, p=0.5):
-        self.p = p
+    def __init__(
+        self,
+        cube_size_min=0.1,
+        cube_size_max=0.5,
+        npoint_frac=0.005,
+        cell_size=0.02,
+        density_factor=0.1,
+        kill_color_proba=0.5,
+    ):
+        self.cube_size_min = cube_size_min
+        self.cube_size_max = cube_size_max
+        self.npoint_frac = npoint_frac
+        self.cell_size = cell_size
+        self.density_factor = density_factor
+        self.kill_color_proba = kill_color_proba
+
+    def add_random_cubes(self, data_dict):
+
+        xyz = data_dict["coord"]
+        rgb = getattr(data_dict, "color", np.zeros_like(xyz))
+        semantic_label = getattr(data_dict, "segment", np.zeros(len(xyz)))
+        instance_label = getattr(data_dict, "instance", np.zeros(len(xyz)))
+        normal = getattr(data_dict, "normal", np.zeros_like(xyz))
+
+        cubes = get_random_cubes_random_sampled_point_references(
+            self.cube_size_min,
+            self.cube_size_max,
+            xyz,
+            npoints=int(self.npoint_frac * len(xyz)),
+            cell_size=self.cell_size,
+            actual_cube=False,
+            sphere=False,
+            point_sampling="random",
+            density_factor=self.density_factor,
+        )
+
+        xyz = np.vstack([xyz, cubes])
+
+        rand_colors = 2 * np.random.rand(*cubes.shape) - 1
+        rgb = np.vstack([rgb, rand_colors])
+
+        if normal is not None:
+            rand_normals = np.random.rand(*cubes.shape)
+            normal = np.vstack([normal, rand_normals])
+
+        # Randomly turn colors off
+        if np.random.rand() < self.kill_color_proba:
+            rgb = rgb * 0.0
+
+        semantic_label = np.hstack(
+            [np.ones_like(semantic_label), np.zeros(cubes.shape[0])]
+        ).astype(np.int32)
+
+        instance_label = np.hstack(
+            [-1 * np.ones(instance_label.shape[0]), -1 * np.ones(cubes.shape[0])]
+        ).astype(np.int32)
+
+        return xyz, rgb, semantic_label, instance_label, normal
 
     def __call__(self, data_dict):
         """
@@ -1167,11 +1226,6 @@ class SculptingOcclude(object):
             data_dict["segment"],
             data_dict["instance"],
             data_dict["normal"],
-        ) = add_random_cubes(
-            data_dict["coord"],
-            data_dict["color"],
-            data_dict["segment"],
-            data_dict["instance"],
-            data_dict["normal"],
-        )
+        ) = self.add_random_cubes(data_dict)
+        # from pointcept.utils import ForkedPdb; ForkedPdb().set_trace()
         return data_dict

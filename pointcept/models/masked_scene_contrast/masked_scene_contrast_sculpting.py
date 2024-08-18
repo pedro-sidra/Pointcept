@@ -40,6 +40,7 @@ class MaskedSceneContrast(nn.Module):
         reconstruct_weight=1,
         reconstruct_color=True,
         reconstruct_normal=True,
+        reconstruct_sculpting=True,
     ):
         super().__init__()
         self.backbone = build_model(backbone)
@@ -56,7 +57,10 @@ class MaskedSceneContrast(nn.Module):
         self.reconstruct_color = reconstruct_color
         self.reconstruct_normal = reconstruct_normal
 
-        # trainable token 
+        # PEDRO
+        self.reconstruct_sculpting = reconstruct_sculpting
+
+        # trainable token
         self.mask_token = nn.Parameter(torch.zeros(1, backbone_in_channels))
         trunc_normal_(self.mask_token, mean=0.0, std=0.02)
 
@@ -65,6 +69,11 @@ class MaskedSceneContrast(nn.Module):
         )
         self.normal_head = (
             nn.Linear(backbone_out_channels, 3) if reconstruct_normal else None
+        )
+
+        # PEDRO
+        self.sculpting_head = (
+            nn.Linear(backbone_out_channels, 2) if reconstruct_sculpting else None
         )
 
         self.nce_criteria = torch.nn.CrossEntropyLoss(reduction="mean")
@@ -136,7 +145,7 @@ class MaskedSceneContrast(nn.Module):
 
         # mark each patch with a tag: 1 for view1, 2 for view2
         patch_mask = torch.zeros(patch_num, device=union_original_coord.device).int()
-        
+
         # random list of patch IDs
         rand_perm = torch.randperm(patch_num)
         # fraction of patches chosen to be masked-out
@@ -210,9 +219,10 @@ class MaskedSceneContrast(nn.Module):
         # Select one random neighbor from each 'neighborhood'
 
         select = (
-            torch.cumsum(count, dim=0) # index of first point within each neighborhood
-             - torch.randint(count.max(), count.shape, device=count.device) % count # random offset into the 'neighborhood' indexes
-            - 1 # starts at 0
+            torch.cumsum(count, dim=0)  # index of first point within each neighborhood
+            - torch.randint(count.max(), count.shape, device=count.device)
+            % count  # random offset into the 'neighborhood' indexes
+            - 1  # starts at 0
         )
         # Select random neighbors
         index = index[select]
@@ -233,8 +243,12 @@ class MaskedSceneContrast(nn.Module):
         view2_feat = view2_feat[match_index[:, 1]]
 
         # Normalize features to [0,1]
-        view1_feat = view1_feat / ( torch.norm(view1_feat, p=2, dim=1, keepdim=True) + 1e-7)
-        view2_feat = view2_feat / ( torch.norm(view2_feat, p=2, dim=1, keepdim=True) + 1e-7)
+        view1_feat = view1_feat / (
+            torch.norm(view1_feat, p=2, dim=1, keepdim=True) + 1e-7
+        )
+        view2_feat = view2_feat / (
+            torch.norm(view2_feat, p=2, dim=1, keepdim=True) + 1e-7
+        )
 
         # dot between features => similarity between features i and features j
         # (row-> view1, col->view2, i.e. diagonal is positive match, off-diagonal is negative)
@@ -292,7 +306,7 @@ class MaskedSceneContrast(nn.Module):
         # Basically just take `view1_feat` and substitute the features with `mask_token`
         # wherever `view1_point_mask`=True
         view1_mask_tokens = self.mask_token.expand(view1_coord.shape[0], -1)
-        
+
         view1_weight = view1_point_mask.unsqueeze(-1).type_as(view1_mask_tokens)
         view1_feat = view1_feat * (1 - view1_weight) + view1_mask_tokens * view1_weight
 
@@ -345,7 +359,7 @@ class MaskedSceneContrast(nn.Module):
             max_k=self.matching_max_k,
             max_radius=self.matching_max_radius,
         )
-        
+
         # Contrastive loss -> all positive samples generate similar features between eachother
         # and unique between eachother
         nce_loss, pos_sim, neg_sim = self.compute_contrastive_loss(
@@ -399,6 +413,31 @@ class MaskedSceneContrast(nn.Module):
             ) / (view1_normal_pred.shape[0] + view2_normal_pred.shape[0])
             loss = loss + normal_loss * self.reconstruct_weight
             result_dict["normal_loss"] = normal_loss
+
+        if self.sculpting_head is not None:
+            assert "view1_segment" in data_dict.keys()
+            assert "view2_segment" in data_dict.keys()
+            view1_segment = data_dict["view1_segment"]
+            view2_segment = data_dict["view2_segment"]
+
+            # Predict only for masked points
+            view1_sculpting_pred = self.sculpting_head(view1_feat[view1_point_mask])
+            view2_sculpting_pred = self.sculpting_head(view2_feat[view2_point_mask])
+
+            # normalize
+            view1_sculpting_pred = view1_sculpting_pred / (
+                torch.norm(view1_sculpting_pred, p=2, dim=1, keepdim=True) + 1e-10
+            )
+            view2_sculpting_pred = view2_sculpting_pred / (
+                torch.norm(view2_sculpting_pred, p=2, dim=1, keepdim=True) + 1e-10
+            )
+
+            sculpting_loss = self.nce_criteria(
+                view1_sculpting_pred, view1_segment[view1_point_mask]
+            ) + self.nce_criteria(view2_sculpting_pred, view2_segment[view2_point_mask])
+
+            loss = loss + sculpting_loss * self.reconstruct_weight
+            result_dict["sculpting_loss"] = sculpting_loss
 
         result_dict["loss"] = loss
         return result_dict
