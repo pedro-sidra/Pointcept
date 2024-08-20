@@ -2,7 +2,7 @@ _base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
 batch_size = 2  # bs: total bs in all gpus
-num_worker = 2
+num_worker = 4
 mix_prob = 0
 empty_cache = False
 enable_amp = False
@@ -21,7 +21,7 @@ model = dict(
     ),
     backbone_in_channels=6,
     backbone_out_channels=96,
-    mask_grid_size=0.1,
+    mask_grid_size=0.10,
     mask_rate=0.4,
     view1_mix_prob=0.8,
     view2_mix_prob=0,
@@ -82,7 +82,16 @@ data = dict(
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
-            dict(type="SculptingOcclude"),
+            dict(
+                type="SculptingOcclude",
+                cube_size_min=0.1,
+                cube_size_max=0.2,
+                npoint_frac=None,
+                npoint=5,
+                cell_size=0.02,
+                density_factor=0.1,
+                kill_color_proba=0,
+            ),
             dict(type="RandomScale", scale=[0.9, 1.1]),
             dict(type="Copy", keys_dict={"coord": "original_coord"}),
             dict(
