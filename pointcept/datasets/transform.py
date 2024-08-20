@@ -1160,6 +1160,7 @@ class SculptingOcclude(object):
         cube_size_min=0.1,
         cube_size_max=0.5,
         npoint_frac=0.005,
+        npoint=None,
         cell_size=0.02,
         density_factor=0.1,
         kill_color_proba=0.5,
@@ -1167,6 +1168,7 @@ class SculptingOcclude(object):
         self.cube_size_min = cube_size_min
         self.cube_size_max = cube_size_max
         self.npoint_frac = npoint_frac
+        self.npoint= npoint
         self.cell_size = cell_size
         self.density_factor = density_factor
         self.kill_color_proba = kill_color_proba
@@ -1179,11 +1181,16 @@ class SculptingOcclude(object):
         instance_label = getattr(data_dict, "instance", np.zeros(len(xyz)))
         normal = getattr(data_dict, "normal", np.zeros_like(xyz))
 
+        if self.npoints is None:
+            ncubes=int(self.npoint_frac * len(xyz))
+        else:
+            ncubes=self.npoints
+
         cubes = get_random_cubes_random_sampled_point_references(
             self.cube_size_min,
             self.cube_size_max,
             xyz,
-            npoints=int(self.npoint_frac * len(xyz)),
+            npoints=ncubes,
             cell_size=self.cell_size,
             actual_cube=False,
             sphere=False,
