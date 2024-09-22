@@ -1,8 +1,9 @@
 _base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
-batch_size = 1  # bs: total bs in all gpus
-num_worker = 1  # total worker in all gpu
+batch_size = 24  # bs: total bs in all gpus
+num_worker = 24  # total worker in all gpu
+seed = 1234
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True
@@ -40,16 +41,23 @@ data_root = "data/scannet"
 data = dict(
     num_classes=2,
     ignore_index=-100,
-    names=[
-        "occlusion","original"
-    ],
+    names=["occlusion", "original"],
     train=dict(
         type=dataset_type,
         split=["train", "val", "test"],
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
-            dict(type="SculptingOcclude"),
+            dict(
+                type="SculptingOcclude",
+                cube_size_min=0.1,
+                cube_size_max=0.5,
+                npoint_frac=0.005,
+                npoints=None,
+                cell_size=0.02,
+                density_factor=0.1,
+                kill_color_proba=0,
+            ),
             dict(
                 type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=0.2
             ),
@@ -135,7 +143,7 @@ data = dict(
             crop=None,
             post_transform=[
                 dict(type="CenterShift", apply_z=False),
-            dict(type="SculptingOcclude"),
+                dict(type="SculptingOcclude"),
                 dict(type="ToTensor"),
                 dict(
                     type="Collect",
