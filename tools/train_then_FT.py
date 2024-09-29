@@ -52,9 +52,7 @@ def main_worker(cfg):
     return trainer
 
 
-def main():
-    args = default_argument_parser().parse_args()
-    cfg = default_config_parser(args.config_file, args.options)
+def main(args,cfg):
 
     exp_path = Path(cfg.save_path)
     exp_path.mkdir(exist_ok=True, parents=True)
@@ -87,4 +85,13 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # Pre-train
+    args = default_argument_parser().parse_args()
+    cfg = default_config_parser(args.config_file, args.options)
+    main(args,cfg)
+
+    # Fine-tune
+    args = default_argument_parser().parse_args()
+    args.config_file = cfg["FT_config"]
+    cfg = default_config_parser(args.config_file, args.options)
+    main(args,cfg)
