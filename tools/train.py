@@ -27,6 +27,11 @@ def turn_on_tensorboard_sync(wandb_run):
     with telemetry.context() as tel:
         tel.feature.tensorboard_sync = True
 
+def turn_off_tensorboard_sync(wandb_run):
+    wandb.tensorboard.unpatch()
+    with telemetry.context() as tel:
+        tel.feature.tensorboard_sync = False
+
 
 def wandb_tracking_main_worker(cfg, wandb_run: wandb_sdk.wandb_run.Run):
     # == Original code
@@ -42,6 +47,9 @@ def wandb_tracking_main_worker(cfg, wandb_run: wandb_sdk.wandb_run.Run):
     # Original code
     trainer = TRAINERS.build(dict(type=cfg.train.type, cfg=cfg))
     trainer.train()
+
+    if comm.is_main_process():
+        turn_off_tensorboard_sync(wandb_run)
 
 
 def main_worker(cfg):
