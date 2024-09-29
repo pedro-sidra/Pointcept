@@ -10,6 +10,7 @@ from pointcept.engines.defaults import (
     default_config_parser,
     default_setup,
 )
+import shutil
 from pointcept.engines.train import TRAINERS
 from pointcept.engines.launch import launch
 import pointcept.utils.comm as comm
@@ -95,6 +96,17 @@ def main(args, cfg, wandb_run=None):
     return wandb_run
 
 
+def change_save_path(cfg, args, folder_name):
+    true_savepath = Path(cfg.save_path) / folder_name
+    true_savepath.mkdir(exist_ok=True, parents=True)
+    (true_savepath/"model").mkdir(exist_ok=True, parents=True)
+    fake_savepath = Path(cfg.save_path).parent / folder_name
+
+    fake_savepath.unlink(missing_ok=True)
+    os.symlink(str(true_savepath.absolute()), str(fake_savepath.absolute()), target_is_directory=True)
+
+    args.options["save_path"] = str(fake_savepath)
+
 if __name__ == "__main__":
     # Pre-train
     args = default_argument_parser().parse_args()
@@ -106,10 +118,9 @@ if __name__ == "__main__":
         # change config to fine-tune
         args.config_file = cfg["FT_config"]
         # use trained model weights
-        args.options["weight"] = Path(cfg.save_path) / "model" / "model_last.pth"
-        # save on new folder
-        args.options["save_path"] = cfg.save_path + "_finetune"
-        Path(args.options["save_path"]).mkdir(exist_ok=True, parents=True)
+        args.options["weight"] = str(Path(cfg.save_path) / "model" / "model_last.pth")
 
+        # save on new folder
+        change_save_path(cfg, args, "finetune")
         cfg = default_config_parser(args.config_file, args.options)
         main(args, cfg, wandb_run=run)
