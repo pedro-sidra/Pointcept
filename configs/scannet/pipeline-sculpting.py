@@ -1,6 +1,8 @@
 _base_ = ["../_base_/default_runtime.py"]
 
 FT_config = "semseg-spunet-v1m1-2-efficient-lr10"
+evaluate = False  # evaluate after each epoch training process
+test = None
 
 # misc custom setting
 batch_size = 24  # bs: total bs in all gpus
@@ -25,7 +27,8 @@ model = dict(
 
 
 # scheduler settings
-epoch = 800
+epoch = 20
+eval_epoch = 20
 optimizer = dict(type="SGD", lr=0.05, momentum=0.9, weight_decay=0.0001, nesterov=True)
 scheduler = dict(
     type="OneCycleLR",

@@ -52,9 +52,7 @@ def main_worker(cfg):
     return trainer
 
 
-def main():
-    args = default_argument_parser().parse_args()
-    cfg = default_config_parser(args.config_file, args.options)
+def main(args, cfg, wandb_run=None):
 
     exp_path = Path(cfg.save_path)
     exp_path.mkdir(exist_ok=True, parents=True)
@@ -62,13 +60,14 @@ def main():
     exp_project = exp_path.parent.name
 
     # Wandb tracking
-    wandb_run = wandb.init(
-        name=exp_name,
-        project=exp_project,
-        config=cfg,
-    )
-
-    cfg = wandb_run.config
+    if wandb_run is None:
+        wandb_run = wandb.init(
+            name=exp_name,
+            project=exp_project,
+            config=cfg,
+        )
+        # Do this here to avoid resetting config on fine-tune
+        # cfg = wandb_run.config
 
     launch(
         wandb_tracking_main_worker,
@@ -85,6 +84,23 @@ def main():
     if filename.is_file():
         wandb.log_model(path=str(filename))
 
+    return wandb_run
+
 
 if __name__ == "__main__":
-    main()
+    # Pre-train
+    args = default_argument_parser().parse_args()
+    cfg = default_config_parser(args.config_file, args.options)
+    run = main(args, cfg)
+
+    # Fine-tune
+    if "FT_config" in cfg:
+        # change config to fine-tune
+        args.config_file = cfg["FT_config"]
+        # use trained model weights
+        args.options["weight"] = Path(cfg.save_path) / "model" / "model_last.pth"
+        # save on new folder
+        args.options["save_path"] = cfg.save_path + "_finetune"
+
+        cfg = default_config_parser(args.config_file, args.options)
+        main(args, cfg, wandb_run=run)
