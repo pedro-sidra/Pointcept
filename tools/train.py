@@ -101,6 +101,7 @@ if __name__ == "__main__":
         args.options["weight"] = Path(cfg.save_path) / "model" / "model_last.pth"
         # save on new folder
         args.options["save_path"] = cfg.save_path + "_finetune"
+        Path(args.options["save_path"]).mkdir(exist_ok=True, parents=True)
 
         cfg = default_config_parser(args.config_file, args.options)
         main(args, cfg, wandb_run=run)
