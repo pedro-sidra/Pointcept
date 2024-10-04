@@ -1,11 +1,19 @@
 _base_ = ["../_base_/default_runtime.py"]
 
-FT_config = "semseg-spunet-v1m1-2-efficient-lr10"
-evaluate = True  # evaluate after each epoch training process
+hooks = [
+    dict(type="CheckpointLoaderAllowMismatch"),
+    dict(type="IterationTimer", warmup_iter=2),
+    dict(type="InformationWriter"),
+    dict(type="SemSegEvaluator"),
+    dict(type="CheckpointSaver", save_freq=None),
+    # dict(type="PreciseEvaluator", test_last=False),
+]
+
+FT_config = "configs/scannet-semseg-spunet-v1m1-2-efficient-lr10.py"
 
 # misc custom setting
-batch_size = 5
-num_worker = 5
+batch_size = 2
+num_worker = 2
 seed = 1234
 mix_prob = 0.8
 empty_cache = False
@@ -26,8 +34,8 @@ model = dict(
 
 
 # scheduler settings
-epoch = 10
-eval_epoch = 10
+epoch = 4
+eval_epoch = 4
 optimizer = dict(type="SGD", lr=0.05, momentum=0.9, weight_decay=0.0001, nesterov=True)
 scheduler = dict(
     type="OneCycleLR",
@@ -103,6 +111,7 @@ data = dict(
     val=dict(
         type=dataset_type,
         split="val",
+        lr_file="data/scannet/tasks/scenes/10.txt",
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
@@ -129,6 +138,7 @@ data = dict(
     test=dict(
         type=dataset_type,
         split="val",
+        lr_file="data/scannet/tasks/scenes/10.txt",
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
@@ -148,7 +158,6 @@ data = dict(
             crop=None,
             post_transform=[
                 dict(type="CenterShift", apply_z=False),
-                dict(type="SculptingOcclude"),
                 dict(type="ToTensor"),
                 dict(
                     type="Collect",
