@@ -1,10 +1,13 @@
-ARG TORCH_VERSION=2.0.1
-ARG CUDA_VERSION=11.7
+ARG TORCH_VERSION=1.13.1
+# Always update SPCONV_VERSION equal to cuda version without .
+ARG CUDA_VERSION=11.6
 ARG CUDNN_VERSION=8
 
 # ARG IMG_TAG=pointcept/pointcept:pytorch${BASE_TORCH_TAG}
 
 FROM pytorch/pytorch:${TORCH_VERSION}-cuda${CUDA_VERSION}-cudnn${CUDNN_VERSION}-devel
+
+ENV SPCONV_VERSION=116
 
 
 # Fix nvidia-key error issue (NO_PUBKEY A4B469963BF863CC)
@@ -14,7 +17,7 @@ RUN rm /etc/apt/sources.list.d/*.list
 RUN export DEBIAN_FRONTEND=noninteractive \
 	&& apt -y update --no-install-recommends \
 	&& apt -y install --no-install-recommends \
-	  git wget tmux vim zsh build-essential cmake ninja-build libopenblas-dev libsparsehash-dev \
+	git wget tmux vim zsh build-essential cmake ninja-build libopenblas-dev libsparsehash-dev \
 	&& apt autoremove -y \
 	&& apt clean -y \
 	&& export DEBIAN_FRONTEND=dialog
@@ -28,7 +31,7 @@ RUN pip install --upgrade pip
 RUN pip install torch-geometric
 
 # ENV CUDA_VERSION=${CUDA_VERSION}
-RUN pip install spconv-cu117
+RUN pip install spconv-cu${SPCONV_VERSION}
 RUN pip install open3d
 
 # Build MinkowskiEngine
@@ -48,7 +51,7 @@ RUN TORCH_CUDA_ARCH_LIST="5.2 6.0 6.1 7.0+PTX 8.0" pip install Pointcept/libs/po
 RUN TORCH_CUDA_ARCH_LIST="6.0 6.1 7.0+PTX 8.0" pip install -U git+https://github.com/microsoft/Swin3D.git -v
 
 RUN git config --global --add safe.directory /workspaces/Pointcept && \
-    git config --global --add safe.directory /workspace/Pointcept && \
-    git config --global --add safe.directory /workspace
+	git config --global --add safe.directory /workspace/Pointcept && \
+	git config --global --add safe.directory /workspace
 
-RUN pip install clearml wandb
+RUN pip install clearml wandb 

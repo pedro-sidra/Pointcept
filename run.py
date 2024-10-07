@@ -76,7 +76,7 @@ parser.add_argument(
 args = parser.parse_args()
 for arg in args.__dict__:
     value = getattr(args, arg)
-    if isinstance(value,str) and re.search("{\w+}", value):
+    if isinstance(value, str) and re.search("{\w+}", value):
         setattr(args, arg, value.format(**args.__dict__))
 
 # setup clearml task and put into the queue
@@ -110,14 +110,19 @@ if pretrain_link:
     open(pretrain_path, "wb").write(r.content)
 
 # Run command on remote
+captured_e = None
 try:
     subprocess.run(args.command.split(), stderr=subprocess.STDOUT)
-except subprocess.CalledProcessError:
+except subprocess.CalledProcessError as e:
     print("WARNING: called command failed {args.command}")
+    captured_e = e
 finally:
     models = list(Path(".").glob(args.output_model_location))
-    if len(models)>0:
+    if len(models) > 0:
         model_path = models[0]
         task.upload_artifact(name="model", artifact_object=str(model_path))
     else:
         print(f"no model found on {args.output_model_location}")
+
+if captured_e:
+    raise captured_e
