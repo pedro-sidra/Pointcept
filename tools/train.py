@@ -10,6 +10,7 @@ from pointcept.engines.defaults import (
     default_config_parser,
     default_setup,
 )
+import time
 from pointcept.utils.logger import get_root_logger
 from pointcept.utils.config import Config
 import shutil
@@ -57,6 +58,7 @@ def wandb_train(config_file, options, wandb_run=None):
     cfg.passed_options = options
 
     # == WANDB
+    wandb_dict = None
     if wandb_run is None and comm.is_main_process():
         exp_path = Path(cfg.save_path)
         exp_path.mkdir(exist_ok=True, parents=True)
@@ -64,15 +66,17 @@ def wandb_train(config_file, options, wandb_run=None):
             name=exp_path.name,
             project=exp_path.parent.name,
             config=cfg._cfg_dict,
-            # magic=True,
+            sync_tensorboard=True,
         )
         if (cfg.weight) and (not Path(cfg.weight).is_file()):
             cfg.weight = wandb_run.use_model(cfg.weight)
 
-        cfg = wandb_run.config
+        wandb_dict = wandb_run.config
+
+    if wandb_dict is not None:
+        cfg = Config(wandb_dict.as_dict())
 
     if comm.is_main_process():
-        cfg = Config(cfg.as_dict())
         send_object_to_processes(cfg)
     else:
         cfg = get_object_from_main()
@@ -89,7 +93,7 @@ def wandb_train(config_file, options, wandb_run=None):
         )
 
         # Recurse new training
-        wandb_train(cfg, options, wandb_run=wandb_run)
+        wandb_train(cfg["FT_config"], options, wandb_run=wandb_run)
 
 
 def train_on_cfg(cfg):
@@ -133,13 +137,15 @@ def get_new_save_path(cfg, folder_name):
     (true_savepath / "model").mkdir(exist_ok=True, parents=True)
     fake_savepath = Path(cfg.save_path).parent / folder_name
 
-    fake_savepath.unlink(missing_ok=True)
+    fake_savepath.absolute().unlink(missing_ok=True)
+    # dunno why, OS maybe takes a bit to unlink?
+    time.sleep(0.001)
     os.symlink(
         str(true_savepath.absolute()),
         str(fake_savepath.absolute()),
         target_is_directory=True,
     )
-    return fake_savepath
+    return str(fake_savepath)
 
 
 def change_save_path(cfg, folder_name):
@@ -148,7 +154,9 @@ def change_save_path(cfg, folder_name):
     (true_savepath / "model").mkdir(exist_ok=True, parents=True)
     fake_savepath = Path(cfg.save_path).parent / folder_name
 
-    fake_savepath.unlink(missing_ok=True)
+    fake_savepath.absolute().unlink(missing_ok=True)
+    # dunno why, OS maybe takes a bit to unlink?
+    time.sleep(0.001)
     os.symlink(
         str(true_savepath.absolute()),
         str(fake_savepath.absolute()),
