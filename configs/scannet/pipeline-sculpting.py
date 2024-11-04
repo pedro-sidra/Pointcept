@@ -12,9 +12,8 @@ hooks = [
 FT_config = "configs/scannet-semseg-spunet-v1m1-2-efficient-lr10.py"
 
 # misc custom setting
-batch_size = 2
-num_worker = 2
-seed = 1234
+batch_size = 24  # bs: total bs in all gpus
+num_worker = 24  # total worker in all gpu
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True
@@ -34,8 +33,7 @@ model = dict(
 
 
 # scheduler settings
-epoch = 4
-eval_epoch = 4
+epoch = 800
 optimizer = dict(type="SGD", lr=0.05, momentum=0.9, weight_decay=0.0001, nesterov=True)
 scheduler = dict(
     type="OneCycleLR",
@@ -51,13 +49,33 @@ dataset_type = "ScanNetDataset"
 data_root = "data/scannet"
 
 data = dict(
-    num_classes=2,
-    ignore_index=-100,
-    names=["occlusion", "original"],
+    num_classes=20,
+    ignore_index=-1,
+    names=[
+        "wall",
+        "floor",
+        "cabinet",
+        "bed",
+        "chair",
+        "sofa",
+        "table",
+        "door",
+        "window",
+        "bookshelf",
+        "picture",
+        "counter",
+        "desk",
+        "curtain",
+        "refridgerator",
+        "shower curtain",
+        "toilet",
+        "sink",
+        "bathtub",
+        "otherfurniture",
+    ],
     train=dict(
         type=dataset_type,
-        split=["train", "val", "test"],
-        lr_file="data/scannet/tasks/scenes/10.txt",
+        split="train",
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
@@ -69,7 +87,8 @@ data = dict(
                 npoints=None,
                 cell_size=0.02,
                 density_factor=0.1,
-                kill_color_proba=0,
+                kill_color_proba=0.5,
+                sampling="dense random",
             ),
             dict(
                 type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=0.2
@@ -158,6 +177,7 @@ data = dict(
             crop=None,
             post_transform=[
                 dict(type="CenterShift", apply_z=False),
+                dict(type="SculptingOcclude"),
                 dict(type="ToTensor"),
                 dict(
                     type="Collect",

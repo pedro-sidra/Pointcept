@@ -1164,6 +1164,7 @@ class SculptingOcclude(object):
         cell_size=0.02,
         density_factor=0.1,
         kill_color_proba=0.5,
+        sampling="random"
     ):
         self.cube_size_min = cube_size_min
         self.cube_size_max = cube_size_max
@@ -1172,6 +1173,7 @@ class SculptingOcclude(object):
         self.cell_size = cell_size
         self.density_factor = density_factor
         self.kill_color_proba = kill_color_proba
+        self.sampling = sampling
 
     def add_random_cubes(self, data_dict):
 
@@ -1194,7 +1196,7 @@ class SculptingOcclude(object):
             cell_size=self.cell_size,
             actual_cube=False,
             sphere=False,
-            point_sampling="random",
+            point_sampling=self.sampling,
             density_factor=self.density_factor,
         )
 
