@@ -52,6 +52,11 @@ def train_on_config(cfg):
     trainer = TRAINERS.build(dict(type=cfg.train.type, cfg=cfg))
     trainer.train()
 
+    # Wandb model save
+    if comm.is_main_process():
+        filename = Path(cfg.save_path) / "model" / "model_best.pth"
+        wandb.log_model(path=str(filename))
+
 
 def wandb_train(config_file, options, wandb_run=None):
     cfg = default_config_parser(config_file, options)
@@ -74,7 +79,9 @@ def wandb_train(config_file, options, wandb_run=None):
         wandb_dict = wandb_run.config
 
     if wandb_dict is not None:
+        w = cfg.weight
         cfg = Config(wandb_dict.as_dict())
+        cfg["weight"] = w
 
     if comm.is_main_process():
         send_object_to_processes(cfg)
@@ -82,6 +89,7 @@ def wandb_train(config_file, options, wandb_run=None):
         cfg = get_object_from_main()
 
     train_on_config(cfg)
+    comm.synchronize()
 
     # Fine-tune
     if "FT_config" in cfg:
@@ -94,19 +102,6 @@ def wandb_train(config_file, options, wandb_run=None):
 
         # Recurse new training
         wandb_train(cfg["FT_config"], options, wandb_run=wandb_run)
-
-
-def train_on_cfg(cfg):
-    # == Original code
-    trainer = TRAINERS.build(dict(type=cfg.train.type, cfg=cfg))
-    trainer.train()
-
-    # Wandb model save
-    if comm.is_main_process():
-        filename = Path(cfg.save_path) / "model" / "model_last.pth"
-        wandb.log_model(path=str(filename))
-
-    del trainer
 
 
 # def main_worker(cfg):
@@ -133,18 +128,21 @@ def main(args):
 
 def get_new_save_path(cfg, folder_name):
     true_savepath = Path(cfg.save_path) / folder_name
-    true_savepath.mkdir(exist_ok=True, parents=True)
-    (true_savepath / "model").mkdir(exist_ok=True, parents=True)
     fake_savepath = Path(cfg.save_path).parent / folder_name
 
-    fake_savepath.absolute().unlink(missing_ok=True)
-    # dunno why, OS maybe takes a bit to unlink?
-    time.sleep(0.001)
-    os.symlink(
-        str(true_savepath.absolute()),
-        str(fake_savepath.absolute()),
-        target_is_directory=True,
-    )
+    if comm.is_main_process():
+        true_savepath.mkdir(exist_ok=True, parents=True)
+        (true_savepath / "model").mkdir(exist_ok=True, parents=True)
+
+        fake_savepath.absolute().unlink(missing_ok=True)
+        if fake_savepath.exists():
+            os.remove(str(fake_savepath))
+        # dunno why, OS maybe takes a bit to unlink?
+        os.symlink(
+            str(true_savepath.absolute()),
+            str(fake_savepath.absolute()),
+            target_is_directory=True,
+        )
     return str(fake_savepath)
 
 
