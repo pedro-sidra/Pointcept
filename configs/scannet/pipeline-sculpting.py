@@ -18,7 +18,7 @@ sculpting_params = dict(
     npoint_frac=0.005,
     npoints=None,
     cell_size=0.02,
-    density_factor=0.9,
+    density_factor=0.1,
     kill_color_proba=0.5,
     sampling="dense random",
 )
