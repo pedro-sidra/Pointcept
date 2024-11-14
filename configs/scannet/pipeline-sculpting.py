@@ -1,5 +1,6 @@
 _base_ = ["../_base_/default_runtime.py"]
 
+# No precise evaluator because it breaks sculpting
 hooks = [
     dict(type="CheckpointLoaderAllowMismatch"),
     dict(type="IterationTimer", warmup_iter=2),
@@ -9,7 +10,20 @@ hooks = [
     # dict(type="PreciseEvaluator", test_last=False),
 ]
 
-FT_config = "configs/scannet-semseg-spunet-v1m1-2-efficient-lr10.py"
+# Sculpting params
+sculpting_params = dict(
+    type="SculptingOcclude",
+    cube_size_min=0.1,
+    cube_size_max=0.5,
+    npoint_frac=0.005,
+    npoints=None,
+    cell_size=0.02,
+    density_factor=0.9,
+    kill_color_proba=0.5,
+    sampling="dense random",
+)
+
+FT_config = "configs/scannet/semseg-spunet-sidra-sculptingFT.py"
 
 # misc custom setting
 batch_size = 24  # bs: total bs in all gpus
@@ -79,17 +93,7 @@ data = dict(
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
-            dict(
-                type="SculptingOcclude",
-                cube_size_min=0.1,
-                cube_size_max=0.5,
-                npoint_frac=0.005,
-                npoints=None,
-                cell_size=0.02,
-                density_factor=0.1,
-                kill_color_proba=0.5,
-                sampling="dense random",
-            ),
+            sculpting_params,
             dict(
                 type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=0.2
             ),
@@ -134,7 +138,7 @@ data = dict(
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
-            dict(type="SculptingOcclude"),
+            sculpting_params,
             dict(
                 type="GridSample",
                 grid_size=0.02,
@@ -161,7 +165,7 @@ data = dict(
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
-            dict(type="SculptingOcclude"),
+            sculpting_params,
             dict(type="NormalizeColor"),
         ],
         test_mode=True,
@@ -177,7 +181,7 @@ data = dict(
             crop=None,
             post_transform=[
                 dict(type="CenterShift", apply_z=False),
-                dict(type="SculptingOcclude"),
+                sculpting_params,
                 dict(type="ToTensor"),
                 dict(
                     type="Collect",
