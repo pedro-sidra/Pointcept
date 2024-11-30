@@ -6,12 +6,12 @@ hooks = [
     dict(type="IterationTimer", warmup_iter=2),
     dict(type="InformationWriter"),
     dict(type="SemSegEvaluator"),
-    dict(type="CheckpointSaver", save_freq=None),
+    dict(type="CheckpointSaverWandb", save_freq=None),
     # dict(type="PreciseEvaluator", test_last=False),
 ]
 
 # Sculpting params
-sculpting_params = dict(
+sculpting_transform = dict(
     type="SculptingOcclude",
     cube_size_min=0.1,
     cube_size_max=0.5,
@@ -23,7 +23,18 @@ sculpting_params = dict(
     sampling="dense random",
 )
 
-FT_config = "configs/scannet/semseg-spunet-sidra-sculptingFT.py"
+sculpting_data_base_configs = dict(
+    num_classes=2,
+    ignore_index=-1,
+    names=[
+        "occluded",
+        "original",
+    ],
+)
+
+FT_config = "configs/scannet/semseg-spunet-sidra-efficient-lr10.py"
+
+## ===== MODEL DEFINITION
 
 # misc custom setting
 batch_size = 24  # bs: total bs in all gpus
@@ -63,37 +74,14 @@ dataset_type = "ScanNetDataset"
 data_root = "data/scannet"
 
 data = dict(
-    num_classes=20,
-    ignore_index=-1,
-    names=[
-        "wall",
-        "floor",
-        "cabinet",
-        "bed",
-        "chair",
-        "sofa",
-        "table",
-        "door",
-        "window",
-        "bookshelf",
-        "picture",
-        "counter",
-        "desk",
-        "curtain",
-        "refridgerator",
-        "shower curtain",
-        "toilet",
-        "sink",
-        "bathtub",
-        "otherfurniture",
-    ],
+    **sculpting_data_base_configs,
     train=dict(
         type=dataset_type,
         split="train",
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
-            sculpting_params,
+            sculpting_transform,
             dict(
                 type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=0.2
             ),
@@ -138,7 +126,7 @@ data = dict(
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
-            sculpting_params,
+            sculpting_transform,
             dict(
                 type="GridSample",
                 grid_size=0.02,
@@ -165,7 +153,7 @@ data = dict(
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
-            sculpting_params,
+            sculpting_transform,
             dict(type="NormalizeColor"),
         ],
         test_mode=True,
@@ -181,7 +169,7 @@ data = dict(
             crop=None,
             post_transform=[
                 dict(type="CenterShift", apply_z=False),
-                sculpting_params,
+                # sculpting_transform,
                 dict(type="ToTensor"),
                 dict(
                     type="Collect",
