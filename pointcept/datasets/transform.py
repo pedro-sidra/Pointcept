@@ -1164,7 +1164,7 @@ class SculptingOcclude(object):
         cell_size=0.02,
         density_factor=0.1,
         kill_color_proba=0.5,
-        sampling="random"
+        sampling="random",
     ):
         self.cube_size_min = cube_size_min
         self.cube_size_max = cube_size_max
@@ -1179,9 +1179,12 @@ class SculptingOcclude(object):
 
         xyz = data_dict["coord"]
         rgb = getattr(data_dict, "color", np.zeros_like(xyz))
-        semantic_label = getattr(data_dict, "segment", np.zeros(len(xyz)))
-        instance_label = getattr(data_dict, "instance", np.zeros(len(xyz)))
         normal = getattr(data_dict, "normal", np.zeros_like(xyz))
+
+        semantic_label = getattr(data_dict, "segment", np.zeros(len(xyz), dtype=int))
+        instance_label = getattr(
+            data_dict, "instance", -1 * np.ones(len(xyz), dtype=int)
+        )
 
         if self.npoints is None:
             ncubes = int(self.npoint_frac * len(xyz))
@@ -1214,12 +1217,12 @@ class SculptingOcclude(object):
             rgb = rgb * 0.0
 
         semantic_label = np.hstack(
-            [np.ones_like(semantic_label), np.zeros(cubes.shape[0])]
-        ).astype(np.int32)
+            [semantic_label, np.zeros(cubes.shape[0], dtype=np.int16)]
+        ).astype(np.int16)
 
         instance_label = np.hstack(
-            [-1 * np.ones(instance_label.shape[0]), -1 * np.ones(cubes.shape[0])]
-        ).astype(np.int32)
+            [instance_label, -1 * np.ones(cubes.shape[0], dtype=np.int16)]
+        ).astype(np.int16)
 
         return xyz, rgb, semantic_label, instance_label, normal
 
