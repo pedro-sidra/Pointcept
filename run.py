@@ -13,7 +13,7 @@ parser = argparse.ArgumentParser(description="Run script on remote clearml worke
 defaults = dict(
     project="mestre_pedro",
     task="pointcept - {command}",
-    docker="pedrosidra0/pointcept:v2",
+    docker="10.167.1.54:81/apt/pointcept:ptv3",
     docker_arguments="--shm-size=64000mb -e MKL_SERVICE_FORCE_INTEL=1 -v /home/freitas/.netrc:/root/.netrc",
     local=False,
     dataset_id="a38dbe849a49415f99196916d4f947c5",
@@ -112,7 +112,11 @@ if pretrain_link:
 # Run command on remote
 captured_e = None
 try:
-    subprocess.run(args.command.split(), stderr=subprocess.STDOUT)
+    output = subprocess.run(
+        args.command.split(),
+        stderr=subprocess.STDOUT,
+        check=True,
+    )
 except subprocess.CalledProcessError as e:
     print("WARNING: called command failed {args.command}")
     captured_e = e
