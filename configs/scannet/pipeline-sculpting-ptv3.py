@@ -21,7 +21,7 @@ sculpting_transform = dict(
     npoints=None,
     cell_size=0.02,
     density_factor=0.1,
-    kill_color_proba=0.5,
+    kill_color_proba=0.0,
     sampling="dense random",
 )
 
@@ -39,8 +39,8 @@ FT_config = "configs/scannet/semseg-ptv3-sidra-efficient-lr10"
 # ======= MODEL CONFIGS
 
 # misc custom setting
-batch_size = 12  # bs: total bs in all gpus
-num_worker = 24
+batch_size = 8  # bs: total bs in all gpus
+num_worker = 8
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True
@@ -52,7 +52,7 @@ model = dict(
     backbone_out_channels=64,
     backbone=dict(
         type="PT-v3m1",
-        in_channels=6,
+        in_channels=3,
         order=("z", "z-trans", "hilbert", "hilbert-trans"),
         stride=(2, 2, 2, 2),
         enc_depths=(2, 2, 2, 6, 2),
@@ -147,7 +147,7 @@ data = dict(
             dict(
                 type="Collect",
                 keys=("coord", "grid_coord", "segment"),
-                feat_keys=("color", "normal"),
+                feat_keys=("color",),  # "normal"),
             ),
         ],
         test_mode=False,
@@ -172,7 +172,7 @@ data = dict(
             dict(
                 type="Collect",
                 keys=("coord", "grid_coord", "segment"),
-                feat_keys=("color", "normal"),
+                feat_keys=("color",),  # , "normal"),
             ),
         ],
         test_mode=False,
@@ -193,7 +193,7 @@ data = dict(
                 grid_size=0.02,
                 hash_type="fnv",
                 mode="test",
-                keys=("coord", "color", "normal"),
+                keys=("coord", "color"),  # , "normal"),
                 return_grid_coord=True,
             ),
             crop=None,
@@ -203,7 +203,7 @@ data = dict(
                 dict(
                     type="Collect",
                     keys=("coord", "grid_coord", "index"),
-                    feat_keys=("color", "normal"),
+                    feat_keys=("color",),  # , "normal"),
                 ),
             ],
             aug_transform=[
