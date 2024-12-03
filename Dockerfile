@@ -1,13 +1,10 @@
-ARG TORCH_VERSION=1.13.1
-# Always update SPCONV_VERSION equal to cuda version without .
-ARG CUDA_VERSION=11.6
+ARG TORCH_VERSION=2.0.1
+ARG CUDA_VERSION=11.7
 ARG CUDNN_VERSION=8
 
 # ARG IMG_TAG=pointcept/pointcept:pytorch${BASE_TORCH_TAG}
 
 FROM pytorch/pytorch:${TORCH_VERSION}-cuda${CUDA_VERSION}-cudnn${CUDNN_VERSION}-devel
-
-ENV SPCONV_VERSION=116
 
 
 # Fix nvidia-key error issue (NO_PUBKEY A4B469963BF863CC)
@@ -17,23 +14,32 @@ RUN rm /etc/apt/sources.list.d/*.list
 RUN export DEBIAN_FRONTEND=noninteractive \
 	&& apt -y update --no-install-recommends \
 	&& apt -y install --no-install-recommends \
-	git wget tmux vim zsh build-essential cmake ninja-build libopenblas-dev libsparsehash-dev \
+	git wget build-essential cmake ninja-build libopenblas-dev libsparsehash-dev \
 	&& apt autoremove -y \
 	&& apt clean -y \
 	&& export DEBIAN_FRONTEND=dialog
 
-# Install Pointcept environment
+# Installing apt packages
+RUN conda install ninja -y
+# Choose version you want here: https://pytorch.org/get-started/previous-versions/
+# RUN conda install pytorch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0 pytorch-cuda=11.8 -c pytorch -c nvidia
 RUN conda install h5py pyyaml -c anaconda -y
 RUN conda install sharedarray tensorboard tensorboardx yapf addict einops scipy plyfile termcolor timm -c conda-forge -y
 RUN conda install pytorch-cluster pytorch-scatter pytorch-sparse -c pyg -y
-
-RUN pip install --upgrade pip
 RUN pip install torch-geometric
 
-# ENV CUDA_VERSION=${CUDA_VERSION}
-RUN pip install spconv-cu${SPCONV_VERSION}
-RUN pip install open3d
+# spconv (SparseUNet)
+# refer https://github.com/traveller59/spconv
+RUN pip install spconv-cu117
 
+# PPT (clip)
+RUN pip install ftfy regex tqdm
+RUN pip install git+https://github.com/openai/CLIP.git
+
+# PTv1 & PTv2 or precise eval
+# docker & multi GPU arch
+# RUN TORCH_CUDA_ARCH_LIST="ARCH LIST" python  setup.py install
+# e.g. 7.5: RTX 3000; 8.0: a100 More available in: https://developer.nvidia.com/cuda-gpus
 # Build MinkowskiEngine
 RUN git clone https://github.com/NVIDIA/MinkowskiEngine.git
 WORKDIR /workspace/MinkowskiEngine
@@ -54,4 +60,6 @@ RUN git config --global --add safe.directory /workspaces/Pointcept && \
 	git config --global --add safe.directory /workspace/Pointcept && \
 	git config --global --add safe.directory /workspace
 
-RUN pip install clearml wandb 
+# Open3D (visualization, optional)
+RUN pip install open3d wandb clearml 
+RUN pip install flash-attn --no-build-isolation
