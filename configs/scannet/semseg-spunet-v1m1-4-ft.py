@@ -1,8 +1,8 @@
 _base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
-batch_size = 12  # bs: total bs in all gpus
-num_worker=12
+batch_size = 24  # bs: total bs in all gpus
+num_worker = 24
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True
@@ -22,7 +22,13 @@ model = dict(
 
 # scheduler settings
 epoch = 800
-optimizer = dict(type="SGD", lr=0.05*(batch_size/48), momentum=0.9, weight_decay=0.0001, nesterov=True)
+optimizer = dict(
+    type="SGD",
+    lr=0.05 * (batch_size / 48),
+    momentum=0.9,
+    weight_decay=0.0001,
+    nesterov=True,
+)
 scheduler = dict(
     type="OneCycleLR",
     max_lr=optimizer["lr"],

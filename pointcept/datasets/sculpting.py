@@ -3,6 +3,7 @@
 
 Author: Pedro Sidra (pedrosidra0@gmail.com)
 """
+
 import torch
 import time
 from scipy.stats import zscore
@@ -21,7 +22,6 @@ import torch
 import copy
 from collections.abc import Sequence, Mapping
 
-from pointcept.utils.registry import Registry
 
 def add_random_cubes(xyz, rgb, semantic_label, instance_label, normal=None):
     cube_size_min = 0.1
@@ -61,6 +61,7 @@ def add_random_cubes(xyz, rgb, semantic_label, instance_label, normal=None):
 
     return xyz, rgb, semantic_label, instance_label, normal
 
+
 def normalize(arr):
     return arr / np.linalg.norm(arr)
 
@@ -73,9 +74,15 @@ def get_random_cube(
     sphere=None,
     point_sampling="dense",
     density_factor=1.0,
+    rand_rotate=True,
 ):
     # random rotation in z
-    rotation = R.from_euler("z", np.random.rand() * np.pi, degrees=False).as_matrix()
+    if rand_rotate:
+        rotation = R.from_euler(
+            "z", np.random.rand() * np.pi, degrees=False
+        ).as_matrix()
+    else:
+        rotation = R.from_euler("z", 0, degrees=False).as_matrix()
 
     # uniform random between size_min and size_max
     cube_size = cube_size_min + np.random.rand(3) * (cube_size_max - cube_size_min)
