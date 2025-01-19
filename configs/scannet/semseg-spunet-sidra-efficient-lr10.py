@@ -108,7 +108,6 @@ data = dict(
         type=dataset_type,
         split="val",
         data_root=data_root,
-        lr_file="data/scannet/tasks/scenes/20.txt",
         transform=[
             dict(type="CenterShift", apply_z=True),
             dict(
@@ -134,7 +133,6 @@ data = dict(
         type=dataset_type,
         split="val",
         data_root=data_root,
-        lr_file="data/scannet/tasks/scenes/20.txt",
         transform=[
             dict(type="CenterShift", apply_z=True),
             dict(type="NormalizeColor"),

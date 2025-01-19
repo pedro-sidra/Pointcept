@@ -811,21 +811,31 @@ class GridSample(object):
 
     def __call__(self, data_dict):
         assert "coord" in data_dict.keys()
+
+        # To voxel indexes
         scaled_coord = data_dict["coord"] / np.array(self.grid_size)
         grid_coord = np.floor(scaled_coord).astype(int)
         min_coord = grid_coord.min(0)
         grid_coord -= min_coord
         scaled_coord -= min_coord
+
+        # Save the min coord in original values
         min_coord = min_coord * np.array(self.grid_size)
+
+        # Hash of the grid coords -> to group the unique voxel coords
         key = self.hash(grid_coord)
         idx_sort = np.argsort(key)
         key_sort = key[idx_sort]
+        # unique values of the key
+        # inverse: mapping from points to voxels (p2v_map)
+        # count: points per voxel
         _, inverse, count = np.unique(key_sort, return_inverse=True, return_counts=True)
         if self.mode == "train":  # train mode
             idx_select = (
                 np.cumsum(np.insert(count, 0, 0)[0:-1])
                 + np.random.randint(0, count.max(), count.size) % count
             )
+            # mapping from voxels to a single point (v2p_map)
             idx_unique = idx_sort[idx_select]
             if "sampled_index" in data_dict:
                 # for ScanNet data efficient, we need to make sure labeled point is sampled.
