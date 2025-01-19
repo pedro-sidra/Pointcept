@@ -8,13 +8,14 @@
 	// 	// Update the 'dockerFile' property if you aren't using the standard 'Dockerfile' filename.
 	// 	"dockerfile": "../Dockerfile"
 	// },
-  "image": "pedrosidra0/pointcept:v2",
+  "image": "pedrosidra0/pointcept:ptv3",
 	"customizations": {
 		"vscode": {
 			"extensions": [
 				"ms-python.python",
 				"ms-azuretools.vscode-docker",
-				"ms-python.black-formatter"
+				"ms-python.black-formatter",
+				"ms-toolsai.jupyter"
 			]
 		}
 	},

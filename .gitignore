@@ -16,4 +16,9 @@ outputs/
 
 #pedrosidra
 wandb/
+artifacts/
 *.pth
+*.npy
+*.txt
+*.csv
+artifacts/
