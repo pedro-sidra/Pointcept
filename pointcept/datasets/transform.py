@@ -1186,11 +1186,11 @@ class SculptingOcclude(object):
         self.sampling = sampling
 
     def get_random_colors(self, size, low=0, high=255):
-        return np.random.randint(low,high,size).astype(np.float32)
+        return np.random.randint(low, high, size).astype(np.float32)
 
     def get_random_normals(self, size):
-        n = np.random.rand(*size).astype(np.float32)*2-1
-        n = n / np.linalg.norm(n,axis=-1)[:,np.newaxis]
+        n = np.random.rand(*size).astype(np.float32) * 2 - 1
+        n = n / np.linalg.norm(n, axis=-1)[:, np.newaxis]
         return n
 
     def add_random_cubes(self, data_dict):
@@ -1239,8 +1239,6 @@ class SculptingOcclude(object):
         instance_label = np.hstack(
             [-1 * np.ones(instance_label.shape[0]), -1 * np.ones(cubes.shape[0])]
         ).astype(instance_label.dtype)
-
-        breakpoint()
 
         return xyz, rgb, semantic_label, instance_label, normal
 
