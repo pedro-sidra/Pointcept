@@ -1185,16 +1185,22 @@ class SculptingOcclude(object):
         self.kill_color_proba = kill_color_proba
         self.sampling = sampling
 
+    def get_random_colors(self, size, low=0, high=255):
+        return np.random.randint(low,high,size).astype(np.float32)
+
+    def get_random_normals(self, size):
+        n = np.random.rand(*size).astype(np.float32)*2-1
+        n = n / np.linalg.norm(n,axis=-1)[:,np.newaxis]
+        return n
+
     def add_random_cubes(self, data_dict):
 
         xyz = data_dict["coord"]
-        rgb = getattr(data_dict, "color", np.zeros_like(xyz))
-        normal = getattr(data_dict, "normal", np.zeros_like(xyz))
+        rgb = data_dict.get("color", self.get_random_colors(xyz.shape))
+        normal = data_dict.get("normal", self.get_random_normals(xyz.shape))
 
-        semantic_label = getattr(data_dict, "segment", np.zeros(len(xyz), dtype=int))
-        instance_label = getattr(
-            data_dict, "instance", -1 * np.ones(len(xyz), dtype=int)
-        )
+        semantic_label = data_dict.get("segment", np.zeros(len(xyz), dtype=int))
+        instance_label = data_dict.get("instance", -1 * np.ones(len(xyz), dtype=int))
 
         if self.npoints is None:
             ncubes = int(self.npoint_frac * len(xyz))
@@ -1215,16 +1221,16 @@ class SculptingOcclude(object):
 
         xyz = np.vstack([xyz, cubes])
 
-        rand_colors = 2 * np.random.rand(*cubes.shape) - 1
+        rand_colors = self.get_random_colors(cubes.shape)
         rgb = np.vstack([rgb, rand_colors])
 
         if normal is not None:
-            rand_normals = np.zeros(cubes.shape)
+            rand_normals = self.get_random_normals(cubes.shape)
             normal = np.vstack([normal, rand_normals])
 
         # Randomly turn colors off
-        if np.random.rand() < self.kill_color_proba:
-            rgb = rgb * 0.0
+        # if np.random.rand() < self.kill_color_proba:
+        #     rgb = rgb * 0.0
 
         semantic_label = np.hstack(
             [np.ones_like(semantic_label), np.zeros(cubes.shape[0])]
@@ -1233,6 +1239,8 @@ class SculptingOcclude(object):
         instance_label = np.hstack(
             [-1 * np.ones(instance_label.shape[0]), -1 * np.ones(cubes.shape[0])]
         ).astype(instance_label.dtype)
+
+        breakpoint()
 
         return xyz, rgb, semantic_label, instance_label, normal
 
