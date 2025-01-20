@@ -7,7 +7,7 @@ hooks = [
     dict(type="CheckpointLoaderAllowMismatch"),
     dict(type="IterationTimer", warmup_iter=2),
     dict(type="InformationWriter"),
-    dict(type="SemSegEvaluator"),
+    # dict(type="SemSegEvaluator"),
     dict(type="CheckpointSaverWandb", save_freq=None),
     # dict(type="PreciseEvaluator", test_last=False),
 ]
@@ -79,7 +79,7 @@ data = dict(
     **sculpting_data_base_configs,
     train=dict(
         type=dataset_type,
-        split=["train", "val", "test","arkit"],
+        split=["train", "val", "test", "arkit"],
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
