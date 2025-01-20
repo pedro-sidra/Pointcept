@@ -1233,12 +1233,18 @@ class SculptingOcclude(object):
         #     rgb = rgb * 0.0
 
         semantic_label = np.hstack(
-            [np.ones_like(semantic_label), np.zeros(cubes.shape[0])]
-        ).astype(semantic_label.dtype)
+            [
+                np.ones_like(semantic_label, dtype=np.int32),
+                np.zeros(cubes.shape[0], dtype=np.int32),
+            ]
+        )
 
         instance_label = np.hstack(
-            [-1 * np.ones(instance_label.shape[0]), -1 * np.ones(cubes.shape[0])]
-        ).astype(instance_label.dtype)
+            [
+                -1 * np.ones(instance_label.shape[0], dtype=np.int32),
+                -1 * np.ones(cubes.shape[0], dtype=np.int32),
+            ]
+        )
 
         return xyz, rgb, semantic_label, instance_label, normal
 
