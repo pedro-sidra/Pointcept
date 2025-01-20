@@ -1,4 +1,5 @@
 #!/bin/sh
+set -e
 
 cd $(dirname $(dirname "$0")) || exit
 ROOT_DIR=$(pwd)
@@ -11,10 +12,10 @@ CONFIG="None"
 EXP_NAME="None"
 WEIGHT="None"
 RESUME=false
-GPU=None
+GPU="None"
+ARTIFACT="None"
 
-
-while getopts "p:d:c:n:w:g:r:" opt; do
+while getopts "p:d:c:n:w:g:r:a:" opt; do
   case $opt in
     p)
       PYTHON=$OPTARG
@@ -37,6 +38,9 @@ while getopts "p:d:c:n:w:g:r:" opt; do
     g)
       GPU=$OPTARG
       ;;
+    a)
+      ARTIFACT=$OPTARG
+      ;;
     \?)
       echo "Invalid option: -$OPTARG"
       ;;
@@ -51,6 +55,12 @@ fi
 if [ "${NUM_GPU}" = 'None' ]
 then
   NUM_GPU=`$PYTHON -c 'import torch; print(torch.cuda.device_count())'`
+fi
+
+if [ "${ARTIFACT}" != 'None' ]
+then
+  wandb artifact get $ARTIFACT
+  ln -sbf ~+/artifacts/$(basename -- $ARTIFACT) data/$DATASET #|| echo "WARNING: not using dataset artifact $ARTIFACT because file data/$DATASET exists"
 fi
 
 echo "Experiment name: $EXP_NAME"
