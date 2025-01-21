@@ -14,6 +14,7 @@ from torch.utils.data.dataloader import default_collate
 import sys
 import pdb
 
+
 def collate_fn(batch):
     """
     collate function for point cloud which support dict and list,
