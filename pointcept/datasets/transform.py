@@ -17,11 +17,12 @@ import numpy as np
 import torch
 import copy
 from collections.abc import Sequence, Mapping
-import sculpting
 
 from pointcept.utils.registry import Registry
 
 TRANSFORMS = Registry("transforms")
+
+from .sculpting import *
 
 
 @TRANSFORMS.register_module()

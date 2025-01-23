@@ -148,7 +148,7 @@ def get_random_cube_average_heighted_point_reference(points, *args, **kwargs):
 
 
 def get_random_cubes_random_sampled_point_references(
-    cube_size_min, cube_size_max, points, npoints=10, rand_aspect=False, *args, **kwargs
+    cube_size_min, cube_size_max, points, npoints=10, return_idxs=False, *args, **kwargs
 ):
     idxs = np.random.randint(0, len(points), size=npoints)
 
@@ -167,6 +167,35 @@ def get_random_cubes_random_sampled_point_references(
         )
 
     return np.vstack(cubes)
+
+
+def get_random_colored_cubes_on_pts(
+    cube_size_min, cube_size_max, points, feats, npoints=10, *args, **kwargs
+):
+    idxs = np.random.randint(0, len(points), size=npoints)
+
+    cubes = []
+    cube_feats = []
+
+    for idx in idxs:
+        # aspect = np.random.randint(0, 3)
+        _cube_size_min = np.ones(3) * cube_size_min
+        _cube_size_max = np.ones(3) * cube_size_max
+        # _cube_size_min[aspect] = cube_size_max / 5
+        # _cube_size_max[aspect] = cube_size_max
+        point = points[idx]
+        f = feats[idx]
+
+        cube = get_random_cube(
+            _cube_size_min, _cube_size_max, *args, **kwargs
+        ) + point.reshape((1, 3))
+
+        feat = np.ones_like(cube) * f
+
+        cubes.append(cube)
+        cube_feats.append(feat)
+
+    return np.vstack(cubes), np.vstack(cube_feats)
 
 
 if __name__ == "__main__":
