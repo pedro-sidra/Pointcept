@@ -6,6 +6,7 @@ import torch
 import torch.nn.functional as F
 import pandas as pd
 from pypcd.pypcd import pandas_to_pypcd
+from pypcd import pypcd
 
 from pointcept.engines.test import TESTERS, TesterBase
 from pointcept.utils.logger import get_root_logger
@@ -118,6 +119,12 @@ class SemSegPredictor(TesterBase):
         logger.info("<<<<<<<<<<<<<<<<< End Inference <<<<<<<<<<<<<<<<<")
 
     def save_inference_to_pcd(self, output_dir, data_name, df):
+        if "r" in df.columns and "g" in df.columns and "b" in df.columns:
+            colors = df[["r", "g", "b"]].to_numpy()
+            colors = (colors + 1) / 2 * 255
+            df["rgb"] = pypcd.encode_rgb_for_pcl(colors.astype(np.uint8))
+            df.drop(columns=["r", "g", "b"], inplace=True)
+
         pandas_to_pypcd(df).save_pcd(
             f"{output_dir}/{data_name}.pcd", compression="binary_compressed"
         )
