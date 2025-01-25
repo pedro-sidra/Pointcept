@@ -17,12 +17,27 @@ sculpting_transform = dict(
     type="SculptingOcclude",
     cube_size_min=0.1,
     cube_size_max=0.5,
-    npoint_frac=0.005,
+    npoint_frac=0.002,
     npoints=None,
     cell_size=0.02,
-    density_factor=0.1,
+    density_factor=0.25,
     kill_color_proba=0.5,
     sampling="dense random",
+)
+
+voxelize_transform = dict(
+    type="VoxelizeAgg",
+    grid_size=0.02,
+    hash_type="fnv",
+    mode="train",
+    return_grid_coord=True,
+    how_to_agg_feats=dict(
+        coord="mean",
+        color="mean",
+        normal="mean",
+        segment="mode",
+        instance="rand_choice",
+    ),
 )
 
 test = dict(type="SemSegPredictor", verbose=True)
@@ -45,8 +60,8 @@ FT_config = "configs/scannet/semseg-spunet-sidra-efficient-lr10.py"
 ## ===== MODEL DEFINITION
 
 # misc custom setting
-batch_size = 24  # bs: total bs in all gpus
-num_worker = 24  # total worker in all gpu
+batch_size = 12  # bs: total bs in all gpus
+num_worker = 12  # total worker in all gpu
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True
@@ -66,7 +81,7 @@ model = dict(
 
 
 # scheduler settings
-epoch = 800
+epoch = 100
 optimizer = dict(type="SGD", lr=0.05, momentum=0.9, weight_decay=0.0001, nesterov=True)
 scheduler = dict(
     type="OneCycleLR",
@@ -107,14 +122,8 @@ data = dict(
             # dict(type="ChromaticJitter", p=0.95, std=0.05),
             # dict(type="HueSaturationTranslation", hue_max=0.2, saturation_max=0.2),
             # dict(type="RandomColorDrop", p=0.2, color_augment=0.0),
-            dict(
-                type="GridSample",
-                grid_size=0.02,
-                hash_type="fnv",
-                mode="train",
-                return_grid_coord=True,
-            ),
-            dict(type="SphereCrop", point_max=100000, mode="random"),
+            voxelize_transform,
+            dict(type="SphereCrop", point_max=120000, mode="random"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
             dict(type="ShufflePoint"),
@@ -135,13 +144,7 @@ data = dict(
         transform=[
             dict(type="CenterShift", apply_z=True),
             sculpting_transform,
-            dict(
-                type="GridSample",
-                grid_size=0.02,
-                hash_type="fnv",
-                mode="train",
-                return_grid_coord=True,
-            ),
+            voxelize_transform,
             # dict(type="SphereCrop", point_max=1000000, mode="center"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
@@ -162,14 +165,8 @@ data = dict(
         transform=[
             dict(type="CenterShift", apply_z=True),
             sculpting_transform,
-            dict(
-                type="GridSample",
-                grid_size=0.02,
-                hash_type="fnv",
-                mode="train",
-                return_grid_coord=True,
-                keys=("coord", "color", "normal", "segment"),
-            ),
+            voxelize_transform,
+            dict(type="NormalizeColor"),
             dict(type="ToTensor"),
             dict(
                 type="Collect",
@@ -185,15 +182,7 @@ data = dict(
         test_mode=True,
         test_cfg=dict(
             fragment=False,
-            voxelize=dict(
-                type="GridSample",
-                grid_size=0.02,
-                hash_type="fnv",
-                mode="test",
-                return_grid_coord=True,
-                # keys=("coord", "color", "normal"),
-                keys=("coord", "color", "normal", "segment"),
-            ),
+            voxelize=voxelize_transform,
             crop=None,
             post_transform=[
                 dict(type="CenterShift", apply_z=False),

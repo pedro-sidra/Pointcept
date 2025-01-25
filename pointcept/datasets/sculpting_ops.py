@@ -10,6 +10,7 @@ from scipy.stats import zscore
 from scipy.spatial.transform import Rotation as R
 from pathlib import Path
 import pandas as pd
+from copy import deepcopy
 
 import random
 import numbers
@@ -94,28 +95,30 @@ def get_random_cube(
         points_x = np.arange(0, cube_size[0], cell_size)
         points_y = np.arange(0, cube_size[1], cell_size)
         points_z = np.arange(0, cube_size[2], cell_size)
-        if "random" in point_sampling:
-            # sample from each dimension to total dimension factor (cube root)
-            choice_factor = density_factor ** (1 / 3)
-            points_x = np.random.choice(
-                points_x, int(choice_factor * len(points_x)), replace=False
-            )
-            points_y = np.random.choice(
-                points_y, int(choice_factor * len(points_y)), replace=False
-            )
-            points_z = np.random.choice(
-                points_z, int(choice_factor * len(points_z)), replace=False
-            )
         x, y, z = np.meshgrid(points_x, points_y, points_z)
+        x = x.flatten()
+        y = y.flatten()
+        z = z.flatten()
+
+        if "random" in point_sampling:
+            choices = np.random.choice(
+                np.arange(len(x)),
+                int(density_factor * len(x)),
+            )
+
+            x = x[choices]
+            y = y[choices]
+            z = z[choices]
+
     if point_sampling == "random":
         npoints = (density_factor * (cube_size / cell_size).prod()).astype(int)
         x = np.random.rand(npoints) * cube_size[0]
         y = np.random.rand(npoints) * cube_size[1]
         z = np.random.rand(npoints) * cube_size[2]
+        x = x.flatten()
+        y = y.flatten()
+        z = z.flatten()
 
-    x = x.reshape(-1)
-    y = y.reshape(-1)
-    z = z.reshape(-1)
     x = x - x.mean()
     y = y - y.mean()
     z = z - z.mean()
@@ -198,6 +201,105 @@ def get_random_colored_cubes_on_pts(
     return np.vstack(cubes), np.vstack(cube_feats)
 
 
+def array_rand_choice(ndarray, axis=0):
+    ndarray = np.asarray(ndarray)
+    ndim = ndarray.ndim
+
+    if ndim == 1:
+        return np.random.choice(ndarray)
+
+    choice_idxs = np.arange(0, ndarray.shape[axis - 1])
+    choices = np.random.randint(0, ndarray.shape[axis], ndarray.shape[axis - 1])
+
+    locs = (*(np.s_[:] for _ in range(axis - 1)), choice_idxs, choices)
+
+    return ndarray[locs]
+
+
+def array_mode(ndarray, axis=0, return_details=False):
+    # Check inputs
+    ndarray = np.asarray(ndarray)
+    ndim = ndarray.ndim
+    if ndarray.size == 1:
+        return (ndarray[0], 1)
+    elif ndarray.size == 0:
+        raise Exception("Cannot compute mode on empty array")
+    try:
+        axis = range(ndarray.ndim)[axis]
+    except:
+        raise Exception(
+            'Axis "{}" incompatible with the {}-dimension array'.format(axis, ndim)
+        )
+
+    # mode of 1 or 2 elements is whatever
+    if ndarray.shape[axis] == 1 or ndarray.shape[axis] == 2:
+        return np.take(ndarray, 0, axis=axis)
+
+    # If array is 1-D and np version is > 1.9 np.unique will suffice
+    if all(
+        [
+            ndim == 1,
+            int(np.__version__.split(".")[0]) >= 1,
+            int(np.__version__.split(".")[1]) >= 9,
+        ]
+    ):
+        modals, counts = np.unique(ndarray, return_counts=True)
+        index = np.argmax(counts)
+        return modals[index], counts[index]
+
+    # Sort array
+    sort_idx = np.argsort(ndarray, axis=axis)
+    sort = np.take_along_axis(ndarray, sort_idx, axis=axis)
+    inverse_sort_idx = np.take_along_axis(
+        np.indices(ndarray.shape)[axis], sort_idx, axis=axis
+    )
+    # Create array to transpose along the axis and get padding shape
+    transpose = np.roll(np.arange(ndim)[::-1], axis)
+    shape = list(sort.shape)
+    shape[axis] = 1
+    # Create a boolean array along strides of unique values
+    strides = (
+        np.concatenate(
+            [
+                np.zeros(shape=shape, dtype="bool"),
+                np.diff(sort, axis=axis) == 0,
+                np.zeros(shape=shape, dtype="bool"),
+            ],
+            axis=axis,
+        )
+        .transpose(transpose)
+        .ravel()
+    )
+    # Count the stride lengths
+    counts = np.cumsum(strides)
+    counts[~strides] = np.concatenate([[0], np.diff(counts[~strides])])
+    counts[strides] = 0
+    # Get shape of padded counts and slice to return to the original shape
+    shape = np.array(sort.shape)
+    shape[axis] += 1
+    shape = shape[transpose]
+    slices = [slice(None)] * ndim
+    slices[axis] = slice(1, None)
+    # Reshape and compute final counts
+    counts = counts.reshape(shape).transpose(transpose)[tuple(slices)] + 1
+
+    # Find maximum counts and return modals/counts
+    slices = [slice(None, i) for i in sort.shape]
+    del slices[axis]
+    index = np.ogrid[slices]
+    index.insert(axis, np.argmax(counts, axis=axis))
+
+    reverse_index = deepcopy(index)
+    reverse_index[axis] = inverse_sort_idx[tuple(index)]
+
+    index = tuple(index)
+    reverse_index = tuple(reverse_index)
+    if return_details:
+        return ndarray[reverse_index], counts[index], reverse_index
+    else:
+        return sort[index]
+
+
 if __name__ == "__main__":
     f = Path("./dataset/scannetv2/train/scene0000_00_inst_nostuff.pth")
     xyz, rgb, dummy_sem_label, dummy_inst_label = torch.load(f)
@@ -229,20 +331,6 @@ if __name__ == "__main__":
     )
     cubes["label"] = 0
     pc["label"] = 1
-    # cubes = []
-    # for i in range(5):
-    #     cubes.append(
-    #         pd.DataFrame(
-    #             get_random_cube_random_point_reference(
-    #                 pc[["x", "y", "z"]].to_numpy(),
-    #                 cell_size=0.01,
-    #                 actual_cube=True,
-    #                 cube_size_min=np.array([0.1, 0.1, 0.1]),
-    #                 cube_size_max=np.array([1.0, 1.0, 1.0]),
-    #             ),
-    #             columns=["x", "y", "z"],
-    #         )
-    #     )
     pc = pd.concat([pc, cubes])
 
     pc.to_csv("output.txt")
