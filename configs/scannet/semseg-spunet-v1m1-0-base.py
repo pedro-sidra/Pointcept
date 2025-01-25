@@ -125,7 +125,7 @@ data = dict(
             dict(
                 type="Collect",
                 keys=("coord", "grid_coord", "segment"),
-                feat_keys=("color", ),
+                feat_keys=("color",),
             ),
         ],
         test_mode=False,

@@ -1,21 +1,13 @@
-import random
-import numbers
-import scipy
-import scipy.ndimage
-import scipy.interpolate
-import scipy.stats
 import numpy as np
-import torch
-import copy
-from collections.abc import Sequence, Mapping
 from pointcept.datasets.sculpting_ops import (
     add_random_cubes,
     get_random_cubes_random_sampled_point_references,
     get_random_colored_cubes_on_pts,
+    array_mode,
+    array_rand_choice,
 )
-from copy import deepcopy
 
-
+import pointcept.datasets.transform as transform
 from pointcept.utils.registry import Registry
 
 TRANSFORMS = Registry("transforms")
@@ -23,33 +15,47 @@ TRANSFORMS = Registry("transforms")
 
 @TRANSFORMS.register_module()
 class VoxelizeAgg(object):
+
+    agg_funcs = dict(
+        mean=np.mean,
+        mode=array_mode,
+        max=np.max,
+        min=np.min,
+        rand_choice=array_rand_choice,
+    )
+
     def __init__(
         self,
         grid_size=0.02,
         hash_type="fnv",
         mode="train",
-        keys=("coord", "color", "normal", "segment"),
         return_inverse=False,
         return_grid_coord=False,
         return_min_coord=False,
-        return_displacement=False,
-        project_displacement=False,
-        mode_agg_vars=[],
-        mean_agg_vars=[],
+        how_to_agg_feats=dict(
+            coord="mean",
+            color="mean",
+            normal="mean",
+            segment="mode",
+        ),
     ):
         self.grid_size = grid_size
-        self.hash = self.fnv_hash_vec if hash_type == "fnv" else self.ravel_hash_vec
+        self.hash = (
+            transform.GridSample.fnv_hash_vec
+            if hash_type == "fnv"
+            else transform.GridSample.ravel_hash_vec
+        )
         assert mode in ["train", "test"]
         self.mode = mode
-        self.keys = keys
+
         self.return_inverse = return_inverse
         self.return_grid_coord = return_grid_coord
         self.return_min_coord = return_min_coord
-        self.return_displacement = return_displacement
-        self.project_displacement = project_displacement
 
-        self.mode_agg_vars = mode_agg_vars
-        self.mean_agg_vars = mean_agg_vars
+        self.how_to_agg_feats = how_to_agg_feats
+
+        for key, agg_func_name in self.how_to_agg_feats.items():
+            self.how_to_agg_feats[key] = VoxelizeAgg.agg_funcs[agg_func_name]
 
     def __call__(self, data_dict):
         assert "coord" in data_dict.keys()
@@ -68,6 +74,7 @@ class VoxelizeAgg(object):
         key = self.hash(grid_coord)
         idx_sort = np.argsort(key)
         key_sort = key[idx_sort]
+
         # unique values of the key
         # inverse: mapping from points to voxels (p2v_map)
         # count: points per voxel
@@ -76,148 +83,43 @@ class VoxelizeAgg(object):
         # mapping from voxels to a single point (v2p_map)
         first_point_idx = idx_sort[np.cumsum(np.insert(count, 0, 0)[0:-1])]
 
-        for var_name in (*self.mode_agg_vars, *self.mean_agg_vars):
+        # Aggregate each function as defined
+        for var_name, agg_func in self.how_to_agg_feats.items():
+
             var = data_dict[var_name]
-            var_voxel = np.empty(shape=(len(count), *var.shape[1:]), dtype=var.dtype)
-            for i in np.unique(count):
-                (voxel_ids,) = np.where(count == i)
+            voxelized_var = np.empty(
+                shape=(len(count), *var.shape[1:]), dtype=var.dtype
+            )
+
+            # There's possibly different points per voxel for each voxel,
+            # which makes it akward to apply `agg_func` with numpy by axis.
+            # So go through all 1-point voxels, then 2-point voxels, etc.
+            # And apply aggfunc separately
+            for npoints in np.unique(count):
+                # Get all voxels with this amount of points
+                (voxel_ids,) = np.where(count == npoints)
                 point_locs = np.isin(inverse, voxel_ids)
 
-                var_by_voxel = var[idx_sort][point_locs].reshape(-1, *var.shape[1:], i)
+                var_by_voxel = var[idx_sort][point_locs]
+                var_by_voxel = var_by_voxel.reshape(
+                    -1,  # autosize
+                    npoints,  # group voxel points in this axis
+                    *var.shape[1:],  # keep the rest
+                )
 
-                if var_name in self.mode_agg_vars:
-                    # TODO: move back to mode
-                    # if i == 1 or i == 2:
-                    #     var_voxel[voxel_ids] = var_by_voxel[:, 0]
-                    # else:
-                    var_voxel[voxel_ids] = np.max(var_by_voxel, axis=-1)
-                elif var_name in self.mean_agg_vars:
-                    var_voxel[voxel_ids] = np.mean(var_by_voxel, axis=-1)
-            data_dict[var_name] = var_voxel
+                # Apply aggfunc to the voxel-point axis
+                voxelized_var[voxel_ids] = agg_func(var_by_voxel, axis=1)
 
+            data_dict[var_name] = voxelized_var
+
+        if self.return_inverse:
+            data_dict["inverse"] = np.zeros_like(inverse)
+            data_dict["inverse"][idx_sort] = inverse
         if self.return_grid_coord:
             data_dict["grid_coord"] = grid_coord[first_point_idx]
         if self.return_min_coord:
             data_dict["min_coord"] = min_coord.reshape([1, 3])
-        # for key in self.keys:
-        #     data_dict[key] = data_dict[key][idx_unique]
         return data_dict
-
-    @staticmethod
-    def ravel_hash_vec(arr):
-        """
-        Ravel the coordinates after subtracting the min coordinates.
-        """
-        assert arr.ndim == 2
-        arr = arr.copy()
-        arr -= arr.min(0)
-        arr = arr.astype(np.uint64, copy=False)
-        arr_max = arr.max(0).astype(np.uint64) + 1
-
-        keys = np.zeros(arr.shape[0], dtype=np.uint64)
-        # Fortran style indexing
-        for j in range(arr.shape[1] - 1):
-            keys += arr[:, j]
-            keys *= arr_max[j + 1]
-        keys += arr[:, -1]
-        return keys
-
-    @staticmethod
-    def fnv_hash_vec(arr):
-        """
-        FNV64-1A
-        """
-        assert arr.ndim == 2
-        # Floor first for negative coordinates
-        arr = arr.copy()
-        arr = arr.astype(np.uint64, copy=False)
-        hashed_arr = np.uint64(14695981039346656037) * np.ones(
-            arr.shape[0], dtype=np.uint64
-        )
-        for j in range(arr.shape[1]):
-            hashed_arr *= np.uint64(1099511628211)
-            hashed_arr = np.bitwise_xor(hashed_arr, arr[:, j])
-        return hashed_arr
-
-    @classmethod
-    def array_mode(self, ndarray, axis=0, return_details=False):
-        # Check inputs
-        ndarray = np.asarray(ndarray)
-        ndim = ndarray.ndim
-        if ndarray.size == 1:
-            return (ndarray[0], 1)
-        elif ndarray.size == 0:
-            raise Exception("Cannot compute mode on empty array")
-        try:
-            axis = range(ndarray.ndim)[axis]
-        except:
-            raise Exception(
-                'Axis "{}" incompatible with the {}-dimension array'.format(axis, ndim)
-            )
-
-        # If array is 1-D and np version is > 1.9 np.unique will suffice
-        if all(
-            [
-                ndim == 1,
-                int(np.__version__.split(".")[0]) >= 1,
-                int(np.__version__.split(".")[1]) >= 9,
-            ]
-        ):
-            modals, counts = np.unique(ndarray, return_counts=True)
-            index = np.argmax(counts)
-            return modals[index], counts[index]
-
-        # Sort array
-        sort_idx = np.argsort(ndarray, axis=axis)
-        sort = np.take_along_axis(ndarray, sort_idx, axis=axis)
-        inverse_sort_idx = np.take_along_axis(
-            np.indices(ndarray.shape)[axis], sort_idx, axis=axis
-        )
-        # Create array to transpose along the axis and get padding shape
-        transpose = np.roll(np.arange(ndim)[::-1], axis)
-        shape = list(sort.shape)
-        shape[axis] = 1
-        # Create a boolean array along strides of unique values
-        strides = (
-            np.concatenate(
-                [
-                    np.zeros(shape=shape, dtype="bool"),
-                    np.diff(sort, axis=axis) == 0,
-                    np.zeros(shape=shape, dtype="bool"),
-                ],
-                axis=axis,
-            )
-            .transpose(transpose)
-            .ravel()
-        )
-        # Count the stride lengths
-        counts = np.cumsum(strides)
-        counts[~strides] = np.concatenate([[0], np.diff(counts[~strides])])
-        counts[strides] = 0
-        # Get shape of padded counts and slice to return to the original shape
-        shape = np.array(sort.shape)
-        shape[axis] += 1
-        shape = shape[transpose]
-        slices = [slice(None)] * ndim
-        slices[axis] = slice(1, None)
-        # Reshape and compute final counts
-        counts = counts.reshape(shape).transpose(transpose)[tuple(slices)] + 1
-
-        # Find maximum counts and return modals/counts
-        slices = [slice(None, i) for i in sort.shape]
-        del slices[axis]
-        index = np.ogrid[slices]
-        index.insert(axis, np.argmax(counts, axis=axis))
-
-        reverse_index = deepcopy(index)
-        reverse_index[axis] = inverse_sort_idx[tuple(index)]
-
-        index = tuple(index)
-        reverse_index = tuple(reverse_index)
-        if return_details:
-            return ndarray[reverse_index], counts[index], reverse_index
-        else:
-            return sort[index]
 
 
 @TRANSFORMS.register_module()
@@ -287,16 +189,15 @@ class SculptingOcclude(object):
 
         # Randomly turn colors off
         if np.random.rand() < self.kill_color_proba:
-            rgb = rgb * 0.0
+            rgb = rgb * 0.0 + np.random.rand() * 255
 
-        semantic_label = np.hstack(
-            [
-                np.ones_like(semantic_label, dtype=np.int32),
-                np.zeros(cubes.shape[0], dtype=np.int32),
-            ]
-        )
+        dummy_cube = np.ones(len(cubes), dtype=np.int32)
+        dummy_pc = np.ones_like(semantic_label, dtype=np.int32)
 
-        return xyz, rgb, semantic_label, normal
+        semantic_label = np.hstack([dummy_pc, 0 * dummy_cube])
+        instance_label = np.hstack([-1 * dummy_pc, -1 * dummy_cube])
+
+        return xyz, rgb, semantic_label, normal, instance_label
 
     def __call__(self, data_dict):
         """
@@ -308,8 +209,8 @@ class SculptingOcclude(object):
             data_dict["coord"],
             data_dict["color"],
             data_dict["segment"],
-            # data_dict["instance"],
             data_dict["normal"],
+            data_dict["instance"],
         ) = self.add_random_cubes(data_dict)
         # from pointcept.utils import ForkedPdb; ForkedPdb().set_trace()
         return data_dict
