@@ -197,7 +197,13 @@ class SculptingOcclude(object):
         semantic_label = np.hstack([dummy_pc, 0 * dummy_cube])
         instance_label = np.hstack([-1 * dummy_pc, -1 * dummy_cube])
 
-        return xyz, rgb, semantic_label, normal, instance_label
+        return (
+            xyz.astype(np.float32),
+            rgb.astype(np.float32),
+            semantic_label.astype(np.int32),
+            normal.astype(np.float32),
+            instance_label.astype(np.int32),
+        )
 
     def __call__(self, data_dict):
         """
