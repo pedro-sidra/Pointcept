@@ -92,7 +92,7 @@ class VoxelizeAgg(object):
                 data_dict[var_name] = data_dict[var_name][first_point_idx]
             elif agg_func=="rand_choice":
                 idx_select = idx_sort[
-                    first_point_idx
+                    np.cumsum(np.insert(count, 0, 0)[0:-1])
                     + np.random.randint(0, count.max(), count.size) % count
                 ]
                 data_dict[var_name] = data_dict[var_name][idx_select]
@@ -175,8 +175,8 @@ class SculptingOcclude(object):
             normal = np.vstack([normal, rand_normals])
 
         # Randomly turn colors off
-        if np.random.rand() < self.kill_color_proba:
-            rgb = rgb * 0.0 + np.random.rand() * 255
+        # if np.random.rand() < self.kill_color_proba:
+        #     rgb = rgb * 0.0 + np.random.rand() * 255
 
         dummy_cube = np.ones(len(cubes), dtype=np.int32)
         dummy_pc = np.ones_like(semantic_label, dtype=np.int32)
