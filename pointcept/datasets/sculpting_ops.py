@@ -201,6 +201,18 @@ def get_random_colored_cubes_on_pts(
     return np.vstack(cubes), np.vstack(cube_feats)
 
 
+def array_choice(ndarray, choices, axis=0):
+    ndarray = np.asarray(ndarray)
+    ndim = ndarray.ndim
+
+    if ndim == 1:
+        return ndarray[choices]
+
+    choice_idxs = np.arange(0, ndarray.shape[axis - 1])
+    locs = (*(np.s_[:] for _ in range(axis - 1)), choice_idxs, choices)
+
+    return ndarray[locs]
+
 def array_rand_choice(ndarray, axis=0):
     ndarray = np.asarray(ndarray)
     ndim = ndarray.ndim
@@ -208,12 +220,8 @@ def array_rand_choice(ndarray, axis=0):
     if ndim == 1:
         return np.random.choice(ndarray)
 
-    choice_idxs = np.arange(0, ndarray.shape[axis - 1])
     choices = np.random.randint(0, ndarray.shape[axis], ndarray.shape[axis - 1])
-
-    locs = (*(np.s_[:] for _ in range(axis - 1)), choice_idxs, choices)
-
-    return ndarray[locs]
+    return array_choice(ndarray, choices, axis=axis)
 
 
 def array_mode(ndarray, axis=0, return_details=False):

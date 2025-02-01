@@ -17,7 +17,7 @@ sculpting_transform = dict(
     type="SculptingOcclude",
     cube_size_min=0.1,
     cube_size_max=0.5,
-    npoint_frac=0.002,
+    npoint_frac=0.004,
     npoints=None,
     cell_size=0.02,
     density_factor=0.25,
@@ -34,9 +34,9 @@ voxelize_transform = dict(
     how_to_agg_feats=dict(
         coord="mean",
         color="mean",
-        normal="mean",
-        segment="mode",
-        instance="rand_choice",
+        segment="rand_choice",
+        normal="first",
+        instance="first",
     ),
 )
 
@@ -55,13 +55,13 @@ sculpting_data_base_configs = dict(
     ],
 )
 
-FT_config = "configs/scannet/semseg-spunet-sidra-efficient-lr10.py"
+FT_config = "configs/scannet/semseg-spunet-sidra-efficient-lr100.py"
 
 ## ===== MODEL DEFINITION
 
 # misc custom setting
-batch_size = 12  # bs: total bs in all gpus
-num_worker = 12  # total worker in all gpu
+batch_size = 64  # bs: total bs in all gpus
+num_worker = 64  # total worker in all gpu
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True
@@ -82,7 +82,7 @@ model = dict(
 
 # scheduler settings
 epoch = 800
-optimizer = dict(type="SGD", lr=0.05, momentum=0.9, weight_decay=0.0001, nesterov=True)
+optimizer = dict(type="SGD", lr=0.05*batch_size/12, momentum=0.9, weight_decay=0.0001, nesterov=True)
 scheduler = dict(
     type="OneCycleLR",
     max_lr=optimizer["lr"],
@@ -100,14 +100,14 @@ data = dict(
     **sculpting_data_base_configs,
     train=dict(
         type=dataset_type,
-        split=["train", "val", "test"],
+        split=["train", "val", "test", "arkit_train",],
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
             sculpting_transform,
-            dict(
-                type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=0.2
-            ),
+            # dict(
+            #     type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=0.2
+            # ),
             # dict(type="RandomRotateTargetAngle", angle=(1/2, 1, 3/2), center=[0, 0, 0], axis="z", p=0.75),
             dict(type="RandomRotate", angle=[-1, 1], axis="z", center=[0, 0, 0], p=0.5),
             dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis="x", p=0.5),
@@ -116,14 +116,14 @@ data = dict(
             # dict(type="RandomShift", shift=[0.2, 0.2, 0.2]),
             dict(type="RandomFlip", p=0.5),
             dict(type="RandomJitter", sigma=0.005, clip=0.02),
-            dict(type="ElasticDistortion", distortion_params=[[0.2, 0.4], [0.8, 1.6]]),
-            # dict(type="ChromaticAutoContrast", p=0.2, blend_factor=None),
-            # dict(type="ChromaticTranslation", p=0.95, ratio=0.05),
-            # dict(type="ChromaticJitter", p=0.95, std=0.05),
+            # dict(type="ElasticDistortion", distortion_params=[[0.2, 0.4], [0.8, 1.6]]),
+            dict(type="ChromaticAutoContrast", p=0.2, blend_factor=None),
+            dict(type="ChromaticTranslation", p=0.95, ratio=0.05),
+            dict(type="ChromaticJitter", p=0.95, std=0.05),
             # dict(type="HueSaturationTranslation", hue_max=0.2, saturation_max=0.2),
             # dict(type="RandomColorDrop", p=0.2, color_augment=0.0),
             voxelize_transform,
-            dict(type="SphereCrop", point_max=120000, mode="random"),
+            dict(type="SphereCrop", point_max=150000, mode="random"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
             dict(type="ShufflePoint"),
