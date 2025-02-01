@@ -107,7 +107,7 @@ data = dict(
     **sculpting_data_base_configs,
     train=dict(
         type=dataset_type,
-        split=["train", "val", "test", "arkit_train",],
+        split=["train", "val", "test", "arkit",],
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
