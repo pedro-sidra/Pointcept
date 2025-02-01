@@ -264,7 +264,7 @@ class Trainer(TrainerBase):
             pin_memory=True,
             worker_init_fn=init_fn,
             drop_last=True,
-            persistent_workers=True,
+            persistent_workers=True if self.cfg.num_worker_per_gpu>0 else False,
         )
         return train_loader
 
@@ -281,6 +281,7 @@ class Trainer(TrainerBase):
                 batch_size=self.cfg.batch_size_val_per_gpu,
                 shuffle=False,
                 num_workers=self.cfg.num_worker_per_gpu,
+                # persistent_workers=True if self.cfg.num_worker_per_gpu>0 else False,
                 pin_memory=True,
                 sampler=val_sampler,
                 collate_fn=collate_fn,

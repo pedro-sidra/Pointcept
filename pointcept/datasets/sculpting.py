@@ -5,7 +5,9 @@ from pointcept.datasets.sculpting_ops import (
     get_random_colored_cubes_on_pts,
     array_mode,
     array_rand_choice,
+    array_choice,
 )
+from copy import deepcopy
 
 import pointcept.datasets.transform as transform
 from pointcept.utils.registry import Registry
@@ -22,6 +24,7 @@ class VoxelizeAgg(object):
         max=np.max,
         min=np.min,
         rand_choice=array_rand_choice,
+        first=lambda x, axis: array_choice(x, 0, axis=axis),
     )
 
     def __init__(
@@ -53,6 +56,7 @@ class VoxelizeAgg(object):
         self.return_min_coord = return_min_coord
 
         self.how_to_agg_feats = how_to_agg_feats
+        self.agg_func_names = deepcopy(how_to_agg_feats)
 
         for key, agg_func_name in self.how_to_agg_feats.items():
             self.how_to_agg_feats[key] = VoxelizeAgg.agg_funcs[agg_func_name]
@@ -83,34 +87,17 @@ class VoxelizeAgg(object):
         # mapping from voxels to a single point (v2p_map)
         first_point_idx = idx_sort[np.cumsum(np.insert(count, 0, 0)[0:-1])]
 
-        # Aggregate each function as defined
-        for var_name, agg_func in self.how_to_agg_feats.items():
-
-            var = data_dict[var_name]
-            voxelized_var = np.empty(
-                shape=(len(count), *var.shape[1:]), dtype=var.dtype
-            )
-
-            # There's possibly different points per voxel for each voxel,
-            # which makes it akward to apply `agg_func` with numpy by axis.
-            # So go through all 1-point voxels, then 2-point voxels, etc.
-            # And apply aggfunc separately
-            for npoints in np.unique(count):
-                # Get all voxels with this amount of points
-                (voxel_ids,) = np.where(count == npoints)
-                point_locs = np.isin(inverse, voxel_ids)
-
-                var_by_voxel = var[idx_sort][point_locs]
-                var_by_voxel = var_by_voxel.reshape(
-                    -1,  # autosize
-                    npoints,  # group voxel points in this axis
-                    *var.shape[1:],  # keep the rest
-                )
-
-                # Apply aggfunc to the voxel-point axis
-                voxelized_var[voxel_ids] = agg_func(var_by_voxel, axis=1)
-
-            data_dict[var_name] = voxelized_var
+        for var_name, agg_func in self.agg_func_names.items():
+            if agg_func == "first":
+                data_dict[var_name] = data_dict[var_name][first_point_idx]
+            elif agg_func=="rand_choice":
+                idx_select = idx_sort[
+                    first_point_idx
+                    + np.random.randint(0, count.max(), count.size) % count
+                ]
+                data_dict[var_name] = data_dict[var_name][idx_select]
+            elif agg_func=="mean":
+                data_dict[var_name] = np.add.reduceat(data_dict[var_name][idx_sort], np.cumsum(np.insert(count, 0, 0)[0:-1])) / count[:, np.newaxis]
 
         if self.return_inverse:
             data_dict["inverse"] = np.zeros_like(inverse)

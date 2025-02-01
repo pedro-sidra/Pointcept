@@ -830,7 +830,7 @@ class GridSample(object):
         if self.mode == "train":  # train mode
             idx_select = (
                 np.cumsum(np.insert(count, 0, 0)[0:-1])
-                + np.random.randint(0, count.max(), count.size) % count
+                # + np.random.randint(0, count.max(), count.size) % count
             )
             # mapping from voxels to a single point (v2p_map)
             idx_unique = idx_sort[idx_select]
@@ -1151,10 +1151,12 @@ class Compose(object):
     def __init__(self, cfg=None):
         self.cfg = cfg if cfg is not None else []
         self.transforms = []
+        self.names = []
         for t_cfg in self.cfg:
+            self.names.append(t_cfg["type"])
             self.transforms.append(TRANSFORMS.build(t_cfg))
 
     def __call__(self, data_dict):
-        for t in self.transforms:
+        for name, t in zip(self.names, self.transforms):
             data_dict = t(data_dict)
         return data_dict
