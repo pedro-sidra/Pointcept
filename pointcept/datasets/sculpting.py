@@ -18,14 +18,14 @@ TRANSFORMS = Registry("transforms")
 @TRANSFORMS.register_module()
 class VoxelizeAgg(object):
 
-    agg_funcs = dict(
-        mean=np.mean,
-        mode=array_mode,
-        max=np.max,
-        min=np.min,
-        rand_choice=array_rand_choice,
-        first=lambda x, axis: array_choice(x, 0, axis=axis),
-    )
+    # agg_funcs = dict(
+    #     mean=np.mean,
+    #     mode=array_mode,
+    #     max=np.max,
+    #     min=np.min,
+    #     rand_choice=array_rand_choice,
+    #     first=lambda x, axis: array_choice(x, 0, axis=axis),
+    # )
 
     def __init__(
         self,
@@ -58,8 +58,8 @@ class VoxelizeAgg(object):
         self.how_to_agg_feats = how_to_agg_feats
         self.agg_func_names = deepcopy(how_to_agg_feats)
 
-        for key, agg_func_name in self.how_to_agg_feats.items():
-            self.how_to_agg_feats[key] = VoxelizeAgg.agg_funcs[agg_func_name]
+        # for key, agg_func_name in self.how_to_agg_feats.items():
+        #     self.how_to_agg_feats[key] = VoxelizeAgg.agg_funcs[agg_func_name]
 
     def __call__(self, data_dict):
         assert "coord" in data_dict.keys()
