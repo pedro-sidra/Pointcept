@@ -67,8 +67,8 @@ FT_config = "configs/scannet/semseg-spunet-sidra-efficient-lr100.py"
 ## ===== MODEL DEFINITION
 
 # misc custom setting
-batch_size = 64  # bs: total bs in all gpus
-num_worker = 64  # total worker in all gpu
+batch_size = 64
+num_worker = 12  # total worker in all gpu
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True
