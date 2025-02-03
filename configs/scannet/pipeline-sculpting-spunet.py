@@ -20,7 +20,7 @@ sculpting_transform = dict(
     npoint_frac=0.004,
     npoints=None,
     cell_size=0.02,
-    density_factor=0.25,
+    density_factor=0.1,
     kill_color_proba=0.5,
     sampling="dense random",
 )
@@ -89,7 +89,7 @@ model = dict(
 
 # scheduler settings
 epoch = 800
-optimizer = dict(type="SGD", lr=0.05*batch_size/12, momentum=0.9, weight_decay=0.0001, nesterov=True)
+optimizer = dict(type="SGD", lr=0.05, momentum=0.9, weight_decay=0.0001, nesterov=True)
 scheduler = dict(
     type="OneCycleLR",
     max_lr=optimizer["lr"],
@@ -107,13 +107,17 @@ data = dict(
     **sculpting_data_base_configs,
     train=dict(
         type=dataset_type,
-        split=["train", "val", "test", "arkit",],
+        split=[
+            "train",
+            "val",
+            "test",
+            "arkit",
+        ],
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
-            sculpting_transform,
             # dict(
-            #     type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=0.2
+            #    type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=0.2
             # ),
             # dict(type="RandomRotateTargetAngle", angle=(1/2, 1, 3/2), center=[0, 0, 0], axis="z", p=0.75),
             dict(type="RandomRotate", angle=[-1, 1], axis="z", center=[0, 0, 0], p=0.5),
@@ -128,12 +132,21 @@ data = dict(
             dict(type="ChromaticTranslation", p=0.95, ratio=0.05),
             dict(type="ChromaticJitter", p=0.95, std=0.05),
             # dict(type="HueSaturationTranslation", hue_max=0.2, saturation_max=0.2),
-            dict(type="RandomColorDrop", p=0.5, color_augment=0.0),
+            # dict(type="RandomColorDrop", p=0.2, color_augment=0.0),
+            dict(
+                type="GridSample",
+                grid_size=0.02,
+                hash_type="fnv",
+                mode="train",
+                return_grid_coord=True,
+            ),
+            dict(type="SphereCrop", point_max=200000, mode="random"),
+            sculpting_transform,
             voxelize_transform,
-            dict(type="SphereCrop", point_max=150000, mode="random"),
+            dict(type="SphereCrop", point_max=120000, mode="random"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
-            dict(type="ShufflePoint"),
+            # dict(type="ShufflePoint"),
             dict(type="ToTensor"),
             dict(
                 type="Collect",
