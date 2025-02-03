@@ -39,6 +39,13 @@ voxelize_transform = dict(
         instance="first",
     ),
 )
+# voxelize_transform=dict(
+#                 type="GridSample",
+#                 grid_size=0.02,
+#                 hash_type="fnv",
+#                 mode="train",
+#                 return_grid_coord=True,
+#             )
 
 test = dict(type="SemSegPredictor", verbose=True)
 
@@ -60,8 +67,8 @@ FT_config = "configs/scannet/semseg-spunet-sidra-efficient-lr100.py"
 ## ===== MODEL DEFINITION
 
 # misc custom setting
-batch_size = 64  # bs: total bs in all gpus
-num_worker = 64  # total worker in all gpu
+batch_size = 64
+num_worker = 12  # total worker in all gpu
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True
@@ -100,7 +107,7 @@ data = dict(
     **sculpting_data_base_configs,
     train=dict(
         type=dataset_type,
-        split=["train", "val", "test", "arkit_train",],
+        split=["train", "val", "test", "arkit",],
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
@@ -121,7 +128,7 @@ data = dict(
             dict(type="ChromaticTranslation", p=0.95, ratio=0.05),
             dict(type="ChromaticJitter", p=0.95, std=0.05),
             # dict(type="HueSaturationTranslation", hue_max=0.2, saturation_max=0.2),
-            # dict(type="RandomColorDrop", p=0.2, color_augment=0.0),
+            dict(type="RandomColorDrop", p=0.5, color_augment=0.0),
             voxelize_transform,
             dict(type="SphereCrop", point_max=150000, mode="random"),
             dict(type="CenterShift", apply_z=False),
