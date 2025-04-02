@@ -12,10 +12,13 @@ CONFIG="None"
 EXP_NAME="None"
 WEIGHT="None"
 RESUME=false
-GPU="None"
 ARTIFACT="None"
+NUM_GPU=None
+NUM_MACHINE=1
+DIST_URL="auto"
 
-while getopts "p:d:c:n:w:g:r:a:" opt; do
+
+while getopts "p:d:c:n:w:g:m:r:a" opt; do
   case $opt in
     p)
       PYTHON=$OPTARG
@@ -36,7 +39,10 @@ while getopts "p:d:c:n:w:g:r:a:" opt; do
       RESUME=$OPTARG
       ;;
     g)
-      GPU=$OPTARG
+      NUM_GPU=$OPTARG
+      ;;
+    m)
+      NUM_MACHINE=$OPTARG
       ;;
     a)
       ARTIFACT=$OPTARG
@@ -67,7 +73,17 @@ echo "Experiment name: $EXP_NAME"
 echo "Python interpreter dir: $PYTHON"
 echo "Dataset: $DATASET"
 echo "Config: $CONFIG"
-echo "GPU Num: $GPU"
+echo "GPU Num: $NUM_GPU"
+echo "Machine Num: $NUM_MACHINE"
+
+if [ -n "$SLURM_NODELIST" ]; then
+  MASTER_HOSTNAME=$(scontrol show hostname "$SLURM_NODELIST" | head -n 1)
+  MASTER_ADDR=$(getent hosts "$MASTER_HOSTNAME" | awk '{ print $1 }')
+  MASTER_PORT=$((10000 + 0x$(echo -n "${DATASET}/${EXP_NAME}" | md5sum | cut -c 1-4 | awk '{print $1}') % 20000))
+  DIST_URL=tcp://$MASTER_ADDR:$MASTER_PORT
+fi
+
+echo "Dist URL: $DIST_URL"
 
 EXP_DIR=exp/${DATASET}/${EXP_NAME}
 MODEL_DIR=${EXP_DIR}/model
@@ -77,11 +93,12 @@ CONFIG_DIR=configs/${DATASET}/${CONFIG}.py
 
 echo " =========> CREATE EXP DIR <========="
 echo "Experiment dir: $ROOT_DIR/$EXP_DIR"
-if ${RESUME}
+if [ "${RESUME}" = true ] && [ -d "$EXP_DIR" ]
 then
   CONFIG_DIR=${EXP_DIR}/config.py
   WEIGHT=$MODEL_DIR/model_last.pth
 else
+  RESUME=false
   mkdir -p "$MODEL_DIR" "$CODE_DIR"
   cp -r scripts tools pointcept "$CODE_DIR"
 fi
@@ -97,11 +114,17 @@ if [ "${WEIGHT}" = "None" ]
 then
     $PYTHON "$CODE_DIR"/tools/$TRAIN_CODE \
     --config-file "$CONFIG_DIR" \
-    --num-gpus "$GPU" \
+    --num-gpus "$NUM_GPU" \
+    --num-machines "$NUM_MACHINE" \
+    --machine-rank ${SLURM_NODEID:-0} \
+    --dist-url ${DIST_URL} \
     --options save_path="$EXP_DIR"
 else
     $PYTHON "$CODE_DIR"/tools/$TRAIN_CODE \
     --config-file "$CONFIG_DIR" \
-    --num-gpus "$GPU" \
+    --num-gpus "$NUM_GPU" \
+    --num-machines "$NUM_MACHINE" \
+    --machine-rank ${SLURM_NODEID:-0} \
+    --dist-url ${DIST_URL} \
     --options save_path="$EXP_DIR" resume="$RESUME" weight="$WEIGHT"
 fi
