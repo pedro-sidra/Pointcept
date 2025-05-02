@@ -20,7 +20,7 @@ sculpting_transform = dict(
     npoint_frac=0.004,
     npoints=None,
     cell_size=0.02,
-    density_factor=0.1,
+    density_factor=0.25,
     kill_color_proba=0.5,
     sampling="dense random",
 )
@@ -67,8 +67,8 @@ FT_config = "configs/scannet/semseg-spunet-sidra-efficient-lr100.py"
 ## ===== MODEL DEFINITION
 
 # misc custom setting
-batch_size = 64
-num_worker = 12  # total worker in all gpu
+batch_size = 2
+num_worker = 4  # total worker in all gpu
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True

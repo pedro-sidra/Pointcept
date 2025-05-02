@@ -17,7 +17,7 @@ sculpting_transform = dict(
     type="SculptingOcclude",
     cube_size_min=0.1,
     cube_size_max=0.5,
-    npoint_frac=0.004,
+    npoint_frac=0.002,
     npoints=None,
     cell_size=0.02,
     density_factor=0.25,
@@ -60,8 +60,8 @@ sculpting_data_base_configs = dict(
 ## ===== MODEL DEFINITION
 
 # misc custom setting
-batch_size = 64  # bs: total bs in all gpus
-num_worker = 64  # total worker in all gpu
+batch_size = 48  # bs: total bs in all gpus
+num_worker = 48  # total worker in all gpu
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True
@@ -111,8 +111,9 @@ model = dict(
 )
 
 # scheduler settings
-epoch = 800
-optimizer = dict(type="AdamW", lr=0.006 * batch_size / 12, weight_decay=0.05)
+epoch = 100
+eval_epoch = 100
+optimizer = dict(type="AdamW", lr=0.006, weight_decay=0.05)
 scheduler = dict(
     type="OneCycleLR",
     max_lr=[0.006, 0.0006],
@@ -135,12 +136,11 @@ data = dict(
             "train",
             "val",
             "test",
-            "arkit_train",
+            # "arkit_train",
         ],
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
-            sculpting_transform,
             # dict(
             #     type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=0.2
             # ),
@@ -158,8 +158,9 @@ data = dict(
             dict(type="ChromaticJitter", p=0.95, std=0.05),
             # dict(type="HueSaturationTranslation", hue_max=0.2, saturation_max=0.2),
             # dict(type="RandomColorDrop", p=0.2, color_augment=0.0),
+            dict(type="SphereCrop", point_max=120000, mode="random"),
+            sculpting_transform,
             voxelize_transform,
-            dict(type="SphereCrop", point_max=150000, mode="random"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
             dict(type="ShufflePoint"),
