@@ -213,6 +213,7 @@ def array_choice(ndarray, choices, axis=0):
 
     return ndarray[locs]
 
+
 def array_rand_choice(ndarray, axis=0):
     ndarray = np.asarray(ndarray)
     ndim = ndarray.ndim
@@ -306,6 +307,69 @@ def array_mode(ndarray, axis=0, return_details=False):
         return ndarray[reverse_index], counts[index], reverse_index
     else:
         return sort[index]
+
+
+def get_pointgrid(ncells=[10, 10, 10]):
+
+    if isinstance(ncells, int):
+        ncells = [ncells, ncells, ncells]
+
+    points_x = np.arange(0, ncells[0])
+    points_y = np.arange(0, ncells[1])
+    points_z = np.arange(0, ncells[2])
+
+    x, y, z = np.meshgrid(points_x, points_y, points_z)
+
+    return np.stack(
+        [
+            x.flatten(),
+            y.flatten(),
+            z.flatten(),
+        ]
+    ).T
+
+
+def get_cube(
+    cube_size,
+    cell_size=0.01,
+    point_sampling="dense",
+    density_factor=1.0,
+):
+    if "dense" in point_sampling:
+        points_x = np.arange(0, cube_size, cell_size)
+        points_y = np.arange(0, cube_size, cell_size)
+        points_z = np.arange(0, cube_size, cell_size)
+        x, y, z = np.meshgrid(points_x, points_y, points_z)
+        x = x.flatten()
+        y = y.flatten()
+        z = z.flatten()
+
+        if "random" in point_sampling:
+            choices = np.random.choice(
+                np.arange(len(x)),
+                int(density_factor * len(x)),
+            )
+
+            x = x[choices]
+            y = y[choices]
+            z = z[choices]
+
+    if point_sampling == "random":
+        npoints = (density_factor * (cube_size / cell_size).prod()).astype(int)
+        x = np.random.rand(npoints) * cube_size[0]
+        y = np.random.rand(npoints) * cube_size[1]
+        z = np.random.rand(npoints) * cube_size[2]
+        x = x.flatten()
+        y = y.flatten()
+        z = z.flatten()
+
+    x = x - x.mean()
+    y = y - y.mean()
+    z = z - z.mean()
+
+    cube = np.stack([x, y, z])
+
+    return cube.T
 
 
 if __name__ == "__main__":

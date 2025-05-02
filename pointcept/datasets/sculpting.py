@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 from pointcept.datasets.sculpting_ops import (
     add_random_cubes,
     get_random_cubes_random_sampled_point_references,
@@ -6,6 +7,7 @@ from pointcept.datasets.sculpting_ops import (
     array_mode,
     array_rand_choice,
     array_choice,
+    get_pointgrid,
 )
 from copy import deepcopy
 
@@ -90,14 +92,20 @@ class VoxelizeAgg(object):
         for var_name, agg_func in self.agg_func_names.items():
             if agg_func == "first":
                 data_dict[var_name] = data_dict[var_name][first_point_idx]
-            elif agg_func=="rand_choice":
+            elif agg_func == "rand_choice":
                 idx_select = idx_sort[
                     np.cumsum(np.insert(count, 0, 0)[0:-1])
                     + np.random.randint(0, count.max(), count.size) % count
                 ]
                 data_dict[var_name] = data_dict[var_name][idx_select]
-            elif agg_func=="mean":
-                data_dict[var_name] = np.add.reduceat(data_dict[var_name][idx_sort], np.cumsum(np.insert(count, 0, 0)[0:-1])) / count[:, np.newaxis]
+            elif agg_func == "mean":
+                data_dict[var_name] = (
+                    np.add.reduceat(
+                        data_dict[var_name][idx_sort],
+                        np.cumsum(np.insert(count, 0, 0)[0:-1]),
+                    )
+                    / count[:, np.newaxis]
+                )
 
         if self.return_inverse:
             data_dict["inverse"] = np.zeros_like(inverse)
@@ -206,4 +214,106 @@ class SculptingOcclude(object):
             data_dict["instance"],
         ) = self.add_random_cubes(data_dict)
         # from pointcept.utils import ForkedPdb; ForkedPdb().set_trace()
+        return data_dict
+
+
+@TRANSFORMS.register_module()
+class SculptingMaskOcclude(object):
+    def __init__(
+        self,
+        mask_size=0.2,
+        mask_ratio=0.5,
+        cell_size=0.02,
+        density_factor=0.1,
+    ):
+        self.mask_size = mask_size
+        self.mask_ratio = mask_ratio
+        self.cell_size = cell_size
+        self.density_factor = density_factor
+
+    def get_sculpting_blocks_mask(
+        self,
+        coord,
+    ):
+        # Ratio of masked voxels
+        MASK_RATIO = self.mask_ratio
+        # Size of each masked voxel
+        MASK_SIZE = self.mask_size
+        # Size of each point in the cube-grid for sculpting
+        SCULPT_CELL_SIZE = self.cell_size
+        SCULPT_CELL_DENSITY = self.density_factor
+
+        # Offset to start at origin and have positive indexes
+        min_coord = np.min(coord, axis=0)
+        grid_coord = ((coord - min_coord) // MASK_SIZE).astype(np.int32)
+
+        # get voxel ids
+        unique_cells = torch.unique(torch.tensor(grid_coord), dim=0)
+
+        # Pick cells for masking
+        ncells = unique_cells.shape[0]
+        ncubes = int(ncells * MASK_RATIO)
+        picked_cells = torch.randint(low=0, high=ncells, size=(ncubes,))
+
+        # Voxel coordinates of picked cells
+        p0s = unique_cells[picked_cells]
+        p0s = (
+            p0s * MASK_SIZE + min_coord  # cell coordinates  # min_coord per batch index
+        )
+
+        # Place cubes at each picked cell
+        c = get_pointgrid(int(MASK_SIZE // SCULPT_CELL_SIZE)) * SCULPT_CELL_SIZE
+        # trick to do outer addition with broadcasting
+        offsetted = p0s[None, ...] + c[:, None, :]
+        offsetted = offsetted.reshape(-1, 3)
+
+        # subsample cubes randomly
+        rand_picks = np.arange(0, len(offsetted))
+        np.random.shuffle(rand_picks)
+        offsetted = offsetted[rand_picks[: int(SCULPT_CELL_DENSITY * len(offsetted))]]
+
+        return offsetted
+
+    def get_random_colors(self, size, low=0, high=255):
+        return np.random.randint(low, high, size).astype(np.float32)
+
+    def get_random_normals(self, size):
+        n = np.random.rand(*size).astype(np.float32) * 2 - 1
+        n = n / np.linalg.norm(n, axis=-1)[:, np.newaxis]
+        return n
+
+    def __call__(self, data_dict):
+
+        xyz = data_dict["coord"]
+        rgb = data_dict.get("color", self.get_random_colors(xyz.shape))
+        normal = data_dict.get("normal", self.get_random_normals(xyz.shape))
+
+        semantic_label = data_dict.get("segment", np.ones(len(xyz), dtype=int))
+
+        cubes = self.get_sculpting_blocks_mask(xyz)
+
+        xyz = np.vstack([xyz, cubes])
+
+        rgb = np.vstack([rgb, self.get_random_colors(cubes.shape)])
+
+        if normal is not None:
+            rand_normals = self.get_random_normals(cubes.shape)
+            normal = np.vstack([normal, rand_normals])
+
+        # Randomly turn colors off
+        # if np.random.rand() < self.kill_color_proba:
+        #     rgb = rgb * 0.0 + np.random.rand() * 255
+
+        dummy_cube = np.ones(len(cubes), dtype=np.int32)
+        dummy_pc = np.ones_like(semantic_label, dtype=np.int32)
+
+        semantic_label = np.hstack([dummy_pc, 0 * dummy_cube])
+        instance_label = np.hstack([-1 * dummy_pc, -1 * dummy_cube])
+
+        data_dict["coord"] = xyz.astype(np.float32)
+        data_dict["color"] = rgb.astype(np.float32)
+        data_dict["segment"] = semantic_label.astype(np.int32)
+        data_dict["normal"] = normal.astype(np.float32)
+        data_dict["instance"] = instance_label.astype(np.int32)
+
         return data_dict
