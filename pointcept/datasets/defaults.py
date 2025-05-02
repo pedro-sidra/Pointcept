@@ -73,6 +73,10 @@ class DefaultDataset(Dataset):
             )
         )
 
+    def set_epoch(self, epoch):
+        self.epoch = epoch
+        self.transform.epoch=epoch
+
     def get_data_list(self):
         if isinstance(self.split, str):
             split_list = [self.split]
