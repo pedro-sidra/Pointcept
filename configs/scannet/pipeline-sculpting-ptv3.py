@@ -1,5 +1,7 @@
 _base_ = ["../_base_/default_runtime.py"]
 
+# wandb_off = 1
+
 # No precise evaluator because it breaks sculpting
 hooks = [
     dict(type="CheckpointLoaderAllowMismatch"),
@@ -10,20 +12,39 @@ hooks = [
     # dict(type="PreciseEvaluator", test_last=False),
 ]
 
-# ======= Sculpting and fine-tune configs
-
 # Sculpting params
 sculpting_transform = dict(
     type="SculptingOcclude",
     cube_size_min=0.1,
     cube_size_max=0.5,
-    npoint_frac=0.005,
+    npoint_frac=0.002,
     npoints=None,
     cell_size=0.02,
-    density_factor=0.1,
-    kill_color_proba=0.0,
+    density_factor=0.25,
+    kill_color_proba=0.5,
     sampling="dense random",
 )
+
+voxelize_transform = dict(
+    type="VoxelizeAgg",
+    grid_size=0.02,
+    hash_type="fnv",
+    mode="train",
+    return_grid_coord=True,
+    how_to_agg_feats=dict(
+        coord="mean",
+        color="mean",
+        segment="rand_choice",
+        normal="first",
+        instance="first",
+    ),
+)
+
+test = dict(type="SemSegPredictor", verbose=True)
+
+tta_identity = [
+    [dict(type="RandomRotateTargetAngle", angle=[0], axis="z", center=[0, 0, 0], p=1)]
+]
 
 sculpting_data_base_configs = dict(
     num_classes=2,
@@ -34,21 +55,22 @@ sculpting_data_base_configs = dict(
     ],
 )
 
-FT_config = "configs/scannet/semseg-ptv3-sidra-efficient-lr10.py"
+# FT_config = "configs/scannet/semseg-ptv3-sidra-efficient-lr10.py"
+# FT_config = "configs/scannet/semseg-spunet-sidra-efficient-lr100.py"
 
-# ======= MODEL CONFIGS
+## ===== MODEL DEFINITION
 
 # misc custom setting
-batch_size = 8  # bs: total bs in all gpus
-num_worker = 8
+batch_size = 48  # bs: total bs in all gpus
+num_worker = 48  # total worker in all gpu
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True
 
-# model settings
+
 model = dict(
     type="DefaultSegmentorV2",
-    num_classes=20,
+    num_classes=2,
     backbone_out_channels=64,
     backbone=dict(
         type="PT-v3m1",
@@ -85,12 +107,13 @@ model = dict(
     ),
     criteria=[
         dict(type="CrossEntropyLoss", loss_weight=1.0, ignore_index=-1),
-        dict(type="LovaszLoss", mode="multiclass", loss_weight=1.0, ignore_index=-1),
+        # dict(type="LovaszLoss", mode="multiclass", loss_weight=1.0, ignore_index=-1),
     ],
 )
 
 # scheduler settings
-epoch = 800
+epoch = 100
+eval_epoch = 100
 optimizer = dict(type="AdamW", lr=0.006, weight_decay=0.05)
 scheduler = dict(
     type="OneCycleLR",
@@ -110,14 +133,18 @@ data = dict(
     **sculpting_data_base_configs,
     train=dict(
         type=dataset_type,
-        split="train",
+        split=[
+            "train",
+            "val",
+            "test",
+            # "arkit_train",
+        ],
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
-            sculpting_transform,
-            dict(
-                type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=0.2
-            ),
+            # dict(
+            #     type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=0.2
+            # ),
             # dict(type="RandomRotateTargetAngle", angle=(1/2, 1, 3/2), center=[0, 0, 0], axis="z", p=0.75),
             dict(type="RandomRotate", angle=[-1, 1], axis="z", center=[0, 0, 0], p=0.5),
             dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis="x", p=0.5),
@@ -126,28 +153,23 @@ data = dict(
             # dict(type="RandomShift", shift=[0.2, 0.2, 0.2]),
             dict(type="RandomFlip", p=0.5),
             dict(type="RandomJitter", sigma=0.005, clip=0.02),
-            dict(type="ElasticDistortion", distortion_params=[[0.2, 0.4], [0.8, 1.6]]),
+            # dict(type="ElasticDistortion", distortion_params=[[0.2, 0.4], [0.8, 1.6]]),
             dict(type="ChromaticAutoContrast", p=0.2, blend_factor=None),
             dict(type="ChromaticTranslation", p=0.95, ratio=0.05),
             dict(type="ChromaticJitter", p=0.95, std=0.05),
             # dict(type="HueSaturationTranslation", hue_max=0.2, saturation_max=0.2),
             # dict(type="RandomColorDrop", p=0.2, color_augment=0.0),
-            dict(
-                type="GridSample",
-                grid_size=0.02,
-                hash_type="fnv",
-                mode="train",
-                return_grid_coord=True,
-            ),
-            dict(type="SphereCrop", point_max=102400, mode="random"),
+            dict(type="SphereCrop", point_max=120000, mode="random"),
+            sculpting_transform,
+            voxelize_transform,
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
-            # dict(type="ShufflePoint"),
+            dict(type="ShufflePoint"),
             dict(type="ToTensor"),
             dict(
                 type="Collect",
                 keys=("coord", "grid_coord", "segment"),
-                feat_keys=("color",),  # "normal"),
+                feat_keys=("color",),
             ),
         ],
         test_mode=False,
@@ -155,24 +177,20 @@ data = dict(
     val=dict(
         type=dataset_type,
         split="val",
+        lr_file="data/scannet/tasks/scenes/10.txt",
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
             sculpting_transform,
-            dict(
-                type="GridSample",
-                grid_size=0.02,
-                hash_type="fnv",
-                mode="train",
-                return_grid_coord=True,
-            ),
+            voxelize_transform,
+            # dict(type="SphereCrop", point_max=1000000, mode="center"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
             dict(type="ToTensor"),
             dict(
                 type="Collect",
                 keys=("coord", "grid_coord", "segment"),
-                feat_keys=("color",),  # , "normal"),
+                feat_keys=("color",),
             ),
         ],
         test_mode=False,
@@ -180,151 +198,164 @@ data = dict(
     test=dict(
         type=dataset_type,
         split="val",
+        lr_file="data/scannet/tasks/scenes/10.txt",
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
             sculpting_transform,
+            voxelize_transform,
             dict(type="NormalizeColor"),
+            dict(type="ToTensor"),
+            dict(
+                type="Collect",
+                keys=(
+                    "name",
+                    "coord",
+                    "grid_coord",
+                    "segment",
+                ),
+                feat_keys=("color",),
+            ),
         ],
         test_mode=True,
         test_cfg=dict(
-            voxelize=dict(
-                type="GridSample",
-                grid_size=0.02,
-                hash_type="fnv",
-                mode="test",
-                keys=("coord", "color"),  # , "normal"),
-                return_grid_coord=True,
-            ),
+            fragment=False,
+            voxelize=voxelize_transform,
             crop=None,
             post_transform=[
                 dict(type="CenterShift", apply_z=False),
                 dict(type="ToTensor"),
                 dict(
                     type="Collect",
-                    keys=("coord", "grid_coord", "index"),
-                    feat_keys=("color",),  # , "normal"),
+                    keys=(
+                        "name",
+                        "coord",
+                        "grid_coord",
+                        "segment",
+                    ),
+                    feat_keys=("color",),
                 ),
             ],
-            aug_transform=[
-                [
-                    dict(
-                        type="RandomRotateTargetAngle",
-                        angle=[0],
-                        axis="z",
-                        center=[0, 0, 0],
-                        p=1,
-                    )
-                ],
-                [
-                    dict(
-                        type="RandomRotateTargetAngle",
-                        angle=[1 / 2],
-                        axis="z",
-                        center=[0, 0, 0],
-                        p=1,
-                    )
-                ],
-                [
-                    dict(
-                        type="RandomRotateTargetAngle",
-                        angle=[1],
-                        axis="z",
-                        center=[0, 0, 0],
-                        p=1,
-                    )
-                ],
-                [
-                    dict(
-                        type="RandomRotateTargetAngle",
-                        angle=[3 / 2],
-                        axis="z",
-                        center=[0, 0, 0],
-                        p=1,
-                    )
-                ],
-                [
-                    dict(
-                        type="RandomRotateTargetAngle",
-                        angle=[0],
-                        axis="z",
-                        center=[0, 0, 0],
-                        p=1,
-                    ),
-                    dict(type="RandomScale", scale=[0.95, 0.95]),
-                ],
-                [
-                    dict(
-                        type="RandomRotateTargetAngle",
-                        angle=[1 / 2],
-                        axis="z",
-                        center=[0, 0, 0],
-                        p=1,
-                    ),
-                    dict(type="RandomScale", scale=[0.95, 0.95]),
-                ],
-                [
-                    dict(
-                        type="RandomRotateTargetAngle",
-                        angle=[1],
-                        axis="z",
-                        center=[0, 0, 0],
-                        p=1,
-                    ),
-                    dict(type="RandomScale", scale=[0.95, 0.95]),
-                ],
-                [
-                    dict(
-                        type="RandomRotateTargetAngle",
-                        angle=[3 / 2],
-                        axis="z",
-                        center=[0, 0, 0],
-                        p=1,
-                    ),
-                    dict(type="RandomScale", scale=[0.95, 0.95]),
-                ],
-                [
-                    dict(
-                        type="RandomRotateTargetAngle",
-                        angle=[0],
-                        axis="z",
-                        center=[0, 0, 0],
-                        p=1,
-                    ),
-                    dict(type="RandomScale", scale=[1.05, 1.05]),
-                ],
-                [
-                    dict(
-                        type="RandomRotateTargetAngle",
-                        angle=[1 / 2],
-                        axis="z",
-                        center=[0, 0, 0],
-                        p=1,
-                    ),
-                    dict(type="RandomScale", scale=[1.05, 1.05]),
-                ],
-                [
-                    dict(
-                        type="RandomRotateTargetAngle",
-                        angle=[1],
-                        axis="z",
-                        center=[0, 0, 0],
-                        p=1,
-                    ),
-                    dict(type="RandomScale", scale=[1.05, 1.05]),
-                ],
-                [
-                    dict(
-                        type="RandomRotateTargetAngle",
-                        angle=[3 / 2],
-                        axis="z",
-                        center=[0, 0, 0],
-                        p=1,
-                    ),
-                    dict(type="RandomScale", scale=[1.05, 1.05]),
-                ],
-                [dict(type="RandomFlip", p=1)],
-            ],
+            aug_transform=tta_identity,
+            # [
+            #     [
+            #         dict(
+            #             type="RandomRotateTargetAngle",
+            #             angle=[0],
+            #             axis="z",
+            #             center=[0, 0, 0],
+            #             p=1,
+            #         )
+            #     ],
+            #     [
+            #         dict(
+            #             type="RandomRotateTargetAngle",
+            #             angle=[1 / 2],
+            #             axis="z",
+            #             center=[0, 0, 0],
+            #             p=1,
+            #         )
+            #     ],
+            #     [
+            #         dict(
+            #             type="RandomRotateTargetAngle",
+            #             angle=[1],
+            #             axis="z",
+            #             center=[0, 0, 0],
+            #             p=1,
+            #         )
+            #     ],
+            #     [
+            #         dict(
+            #             type="RandomRotateTargetAngle",
+            #             angle=[3 / 2],
+            #             axis="z",
+            #             center=[0, 0, 0],
+            #             p=1,
+            #         )
+            #     ],
+            #     [
+            #         dict(
+            #             type="RandomRotateTargetAngle",
+            #             angle=[0],
+            #             axis="z",
+            #             center=[0, 0, 0],
+            #             p=1,
+            #         ),
+            #         dict(type="RandomScale", scale=[0.95, 0.95]),
+            #     ],
+            #     [
+            #         dict(
+            #             type="RandomRotateTargetAngle",
+            #             angle=[1 / 2],
+            #             axis="z",
+            #             center=[0, 0, 0],
+            #             p=1,
+            #         ),
+            #         dict(type="RandomScale", scale=[0.95, 0.95]),
+            #     ],
+            #     [
+            #         dict(
+            #             type="RandomRotateTargetAngle",
+            #             angle=[1],
+            #             axis="z",
+            #             center=[0, 0, 0],
+            #             p=1,
+            #         ),
+            #         dict(type="RandomScale", scale=[0.95, 0.95]),
+            #     ],
+            #     [
+            #         dict(
+            #             type="RandomRotateTargetAngle",
+            #             angle=[3 / 2],
+            #             axis="z",
+            #             center=[0, 0, 0],
+            #             p=1,
+            #         ),
+            #         dict(type="RandomScale", scale=[0.95, 0.95]),
+            #     ],
+            #     [
+            #         dict(
+            #             type="RandomRotateTargetAngle",
+            #             angle=[0],
+            #             axis="z",
+            #             center=[0, 0, 0],
+            #             p=1,
+            #         ),
+            #         dict(type="RandomScale", scale=[1.05, 1.05]),
+            #     ],
+            #     [
+            #         dict(
+            #             type="RandomRotateTargetAngle",
+            #             angle=[1 / 2],
+            #             axis="z",
+            #             center=[0, 0, 0],
+            #             p=1,
+            #         ),
+            #         dict(type="RandomScale", scale=[1.05, 1.05]),
+            #     ],
+            #     [
+            #         dict(
+            #             type="RandomRotateTargetAngle",
+            #             angle=[1],
+            #             axis="z",
+            #             center=[0, 0, 0],
+            #             p=1,
+            #         ),
+            #         dict(type="RandomScale", scale=[1.05, 1.05]),
+            #     ],
+            #     [
+            #         dict(
+            #             type="RandomRotateTargetAngle",
+            #             angle=[3 / 2],
+            #             axis="z",
+            #             center=[0, 0, 0],
+            #             p=1,
+            #         ),
+            #         dict(type="RandomScale", scale=[1.05, 1.05]),
+            #     ],
+            #     [dict(type="RandomFlip", p=1)],
+            # ],
         ),
     ),
 )
