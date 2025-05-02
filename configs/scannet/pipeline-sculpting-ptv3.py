@@ -34,7 +34,7 @@ sculpting_data_base_configs = dict(
     ],
 )
 
-FT_config = "configs/scannet/semseg-ptv3-sidra-efficient-lr10"
+FT_config = "configs/scannet/semseg-ptv3-sidra-efficient-lr10.py"
 
 # ======= MODEL CONFIGS
 

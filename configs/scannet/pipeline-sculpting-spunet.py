@@ -111,7 +111,6 @@ data = dict(
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
-            sculpting_transform,
             # dict(
             #     type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=0.2
             # ),
@@ -129,11 +128,13 @@ data = dict(
             dict(type="ChromaticJitter", p=0.95, std=0.05),
             # dict(type="HueSaturationTranslation", hue_max=0.2, saturation_max=0.2),
             dict(type="RandomColorDrop", p=0.5, color_augment=0.0),
-            voxelize_transform,
             dict(type="SphereCrop", point_max=150000, mode="random"),
+            sculpting_transform,
+            voxelize_transform,
+            dict(type="SphereCrop", point_max=120000, mode="random"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
-            dict(type="ShufflePoint"),
+            # dict(type="ShufflePoint"),
             dict(type="ToTensor"),
             dict(
                 type="Collect",
