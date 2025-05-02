@@ -67,8 +67,8 @@ FT_config = "configs/scannet/semseg-spunet-sidra-efficient-lr100.py"
 ## ===== MODEL DEFINITION
 
 # misc custom setting
-batch_size = 64
-num_worker = 12  # total worker in all gpu
+batch_size = 2
+num_worker = 4  # total worker in all gpu
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True
@@ -89,7 +89,7 @@ model = dict(
 
 # scheduler settings
 epoch = 800
-optimizer = dict(type="SGD", lr=0.05*batch_size/12, momentum=0.9, weight_decay=0.0001, nesterov=True)
+optimizer = dict(type="SGD", lr=0.05, momentum=0.9, weight_decay=0.0001, nesterov=True)
 scheduler = dict(
     type="OneCycleLR",
     max_lr=optimizer["lr"],
@@ -107,12 +107,17 @@ data = dict(
     **sculpting_data_base_configs,
     train=dict(
         type=dataset_type,
-        split=["train", "val", "test", "arkit",],
+        split=[
+            "train",
+            "val",
+            "test",
+            "arkit",
+        ],
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
             # dict(
-            #     type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=0.2
+            #    type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=0.2
             # ),
             # dict(type="RandomRotateTargetAngle", angle=(1/2, 1, 3/2), center=[0, 0, 0], axis="z", p=0.75),
             dict(type="RandomRotate", angle=[-1, 1], axis="z", center=[0, 0, 0], p=0.5),
