@@ -159,6 +159,7 @@ class Trainer(TrainerBase):
                 # => before epoch
                 if comm.get_world_size() > 1:
                     self.train_loader.sampler.set_epoch(self.epoch)
+                    self.train_loader.dataset.set_epoch(self.epoch)
                 self.model.train()
                 self.data_iterator = enumerate(self.train_loader)
                 self.before_epoch()
@@ -277,7 +278,7 @@ class Trainer(TrainerBase):
             collate_fn=partial(point_collate_fn, mix_prob=self.cfg.mix_prob),
             pin_memory=True,
             worker_init_fn=init_fn,
-            persistent_workers=True if self.cfg.num_worker_per_gpu > 0 else False,
+            persistent_workers=False,  # True if self.cfg.num_worker_per_gpu > 0 else False,
             drop_last=len(train_data) > self.cfg.batch_size,
         )
         return train_loader

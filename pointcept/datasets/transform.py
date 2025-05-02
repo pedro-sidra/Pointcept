@@ -1191,11 +1191,14 @@ class Compose(object):
         self.cfg = cfg if cfg is not None else []
         self.transforms = []
         self.names = []
+        self.epoch = None
         for t_cfg in self.cfg:
             self.names.append(t_cfg["type"])
             self.transforms.append(TRANSFORMS.build(t_cfg))
 
     def __call__(self, data_dict):
+        if self.epoch is not None:
+            data_dict.update(epoch=self.epoch)
         for name, t in zip(self.names, self.transforms):
             data_dict = t(data_dict)
         return data_dict
