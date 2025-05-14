@@ -1,7 +1,8 @@
 _base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
-batch_size = 12  # bs: total bs in all gpus
+batch_size = 1  # bs: total bs in all gpus
+num_worker = 1
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True
@@ -30,7 +31,7 @@ model = dict(
     backbone_out_channels=64,
     backbone=dict(
         type="PT-v3m1",
-        in_channels=6,
+        in_channels=3,
         order=("z", "z-trans", "hilbert", "hilbert-trans"),
         stride=(2, 2, 2, 2),
         enc_depths=(2, 2, 2, 6, 2),
@@ -132,7 +133,7 @@ data = dict(
             dict(
                 type="Collect",
                 keys=("coord", "grid_coord", "segment"),
-                feat_keys=("color", "normal"),
+                feat_keys=("color",),
             ),
         ],
         test_mode=False,
@@ -140,8 +141,8 @@ data = dict(
     val=dict(
         type=dataset_type,
         split="val",
-        data_root=data_root,
         lr_file="data/scannet/tasks/scenes/10.txt",
+        data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
             dict(
@@ -157,7 +158,7 @@ data = dict(
             dict(
                 type="Collect",
                 keys=("coord", "grid_coord", "segment"),
-                feat_keys=("color", "normal"),
+                feat_keys=("color",),
             ),
         ],
         test_mode=False,
@@ -165,8 +166,8 @@ data = dict(
     test=dict(
         type=dataset_type,
         split="val",
-        data_root=data_root,
         lr_file="data/scannet/tasks/scenes/10.txt",
+        data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
             dict(type="NormalizeColor"),
@@ -188,7 +189,7 @@ data = dict(
                 dict(
                     type="Collect",
                     keys=("coord", "grid_coord", "index"),
-                    feat_keys=("color", "normal"),
+                    feat_keys=("color",),
                 ),
             ],
             aug_transform=[

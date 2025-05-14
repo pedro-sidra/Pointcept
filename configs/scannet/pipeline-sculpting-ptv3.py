@@ -11,6 +11,7 @@ hooks = [
     dict(type="CheckpointSaverWandb", save_freq=None),
     # dict(type="PreciseEvaluator", test_last=False),
 ]
+evaluate=False
 
 # Sculpting params
 sculpting_transform = dict(
@@ -106,12 +107,12 @@ model = dict(
     ),
     criteria=[
         dict(type="CrossEntropyLoss", loss_weight=1.0, ignore_index=-1),
-        # dict(type="LovaszLoss", mode="multiclass", loss_weight=1.0, ignore_index=-1),
+        dict(type="LovaszLoss", mode="multiclass", loss_weight=1.0, ignore_index=-1),
     ],
 )
 
 # scheduler settings
-epoch = 800
+epoch = 100
 optimizer = dict(type="AdamW", lr=0.006, weight_decay=0.05)
 scheduler = dict(
     type="OneCycleLR",
@@ -156,24 +157,24 @@ data = dict(
             dict(type="ChromaticTranslation", p=0.95, ratio=0.05),
             dict(type="ChromaticJitter", p=0.95, std=0.05),
             # dict(type="HueSaturationTranslation", hue_max=0.2, saturation_max=0.2),
-            dict(type="RandomColorDrop", p=0.5, color_augment=0.0),
-            dict(type="SphereCrop", point_max=150000, mode="random"),
+            # dict(type="RandomColorDrop", p=0.5, color_augment=0.0),
+            dict(type="SphereCrop", point_max=120000, mode="random"),
             sculpting_transform,
             voxelize_transform,
-            dict(
-                type="Update",
-                keys_dict=dict(
-                    index_valid_keys=[
-                        "coord",
-                        "grid_coord",
-                        "color",
-                        "normal",
-                        "segment",
-                        "instance",
-                    ]
-                ),
-            ),
-            dict(type="SphereCrop", point_max=120000, mode="random"),
+            # dict(
+            #     type="Update",
+            #     keys_dict=dict(
+            #         index_valid_keys=[
+            #             "coord",
+            #             "grid_coord",
+            #             "color",
+            #             "normal",
+            #             "segment",
+            #             "instance",
+            #         ]
+            #     ),
+            # ),
+            #dict(type="SphereCrop", point_max=120000, mode="random"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
             # dict(type="ShufflePoint"),
