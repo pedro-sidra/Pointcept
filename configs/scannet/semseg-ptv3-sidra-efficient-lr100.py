@@ -1,8 +1,8 @@
 _base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
-batch_size = 24  # bs: total bs in all gpus
-num_worker = 24
+batch_size = 1  # bs: total bs in all gpus
+num_worker = 1
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True
@@ -98,7 +98,6 @@ data = dict(
         type=dataset_type,
         split="train",
         data_root=data_root,
-        lr_file="data/scannet/tasks/scenes/10.txt",
         transform=[
             dict(type="CenterShift", apply_z=True),
             dict(
@@ -165,7 +164,6 @@ data = dict(
     test=dict(
         type=dataset_type,
         split="val",
-        lr_file="data/scannet/tasks/scenes/10.txt",
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
