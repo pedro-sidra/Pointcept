@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["sculpting"]
+
+[project]
+name = "sculpting"
+version = "0.1.0"
+description = "pre-training by sculpting blocks"
+authors = [
+    { name = "Pedro Sidra de Freitas", email = "pedro.sidra@senairs.org.br" },
+]
+dependencies = [
+    "requests>=2.20.0",
+]
+readme = "README.md"

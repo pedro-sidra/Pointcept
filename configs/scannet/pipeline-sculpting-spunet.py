@@ -1,6 +1,7 @@
 _base_ = ["../_base_/default_runtime.py"]
 
 # wandb_off = 1
+enable_wandb=False
 
 # No precise evaluator because it breaks sculpting
 hooks = [
@@ -17,7 +18,7 @@ sculpting_transform = dict(
     type="SculptingOcclude",
     cube_size_min=0.1,
     cube_size_max=0.5,
-    npoint_frac=0.004,
+    npoint_frac=0.002,
     npoints=None,
     cell_size=0.02,
     density_factor=0.25,
@@ -39,13 +40,6 @@ voxelize_transform = dict(
         instance="first",
     ),
 )
-# voxelize_transform=dict(
-#                 type="GridSample",
-#                 grid_size=0.02,
-#                 hash_type="fnv",
-#                 mode="train",
-#                 return_grid_coord=True,
-#             )
 
 test = dict(type="SemSegPredictor", verbose=True)
 
@@ -73,7 +67,6 @@ mix_prob = 0.8
 empty_cache = False
 enable_amp = True
 
-# model settings
 model = dict(
     type="DefaultSegmentor",
     backbone=dict(
@@ -134,7 +127,7 @@ data = dict(
             # dict(type="HueSaturationTranslation", hue_max=0.2, saturation_max=0.2),
             dict(type="RandomColorDrop", p=0.5, color_augment=0.0),
             dict(type="SphereCrop", point_max=150000, mode="random"),
-            sculpting_transform,
+            #sculpting_transform,
             voxelize_transform,
             dict(type="SphereCrop", point_max=120000, mode="random"),
             dict(type="CenterShift", apply_z=False),

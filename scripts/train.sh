@@ -100,7 +100,7 @@ then
 else
   RESUME=false
   mkdir -p "$MODEL_DIR" "$CODE_DIR"
-  cp -r scripts tools pointcept "$CODE_DIR"
+  cp -r scripts tools "$CODE_DIR"
 fi
 
 echo "Loading config in:" $CONFIG_DIR

@@ -3,6 +3,8 @@ resume = False  # whether to resume training process
 evaluate = True  # evaluate after each epoch training process
 test_only = False  # test process
 
+enable_wandb=False
+
 seed = None  # train process will init a random seed and record
 save_path = "exp/default"
 num_worker = 16  # total worker in all gpu
