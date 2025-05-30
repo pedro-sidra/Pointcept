@@ -20,10 +20,11 @@ import pointcept.utils.comm as comm
 import wandb
 import os
 from pathlib import Path
-from pointcept.utils import ForkedPdb
 from wandb import sdk as wandb_sdk
 
 from wandb.sdk.lib import telemetry
+
+import sculpting
 
 
 def send_object_to_processes(obj):
@@ -56,6 +57,8 @@ def train_on_config(cfg):
     if comm.is_main_process():
         filename = Path(cfg.save_path) / "model" / "model_best.pth"
         wandb.log_model(path=str(filename))
+        filename = Path(cfg.save_path) / "model" / "model_last.pth"
+        wandb.log_model(path=str(filename))
 
 
 def wandb_train(config_file, options, wandb_run=None):
@@ -72,6 +75,8 @@ def wandb_train(config_file, options, wandb_run=None):
             project=exp_path.parent.name,
             config=cfg._cfg_dict,
             sync_tensorboard=True,
+            tags= Path(config_file).stem.split("-"),
+            save_code=True
         )
         if (cfg.weight) and (not Path(cfg.weight).is_file()):
             cfg.weight = wandb_run.use_model(cfg.weight)

@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from pointcept.datasets.sculpting_ops import (
+from .sculpting_ops import (
     add_random_cubes,
     get_random_cubes_random_sampled_point_references,
     get_random_colored_cubes_on_pts,
@@ -13,8 +13,9 @@ from copy import deepcopy
 
 import pointcept.datasets.transform as transform
 from pointcept.utils.registry import Registry
+from pointcept.datasets.transform import TRANSFORMS
 
-TRANSFORMS = Registry("transforms")
+# TRANSFORMS = Registry("transforms")
 
 
 @TRANSFORMS.register_module()
