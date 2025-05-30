@@ -1,39 +1,28 @@
 _base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
-batch_size = 12  # bs: total bs in all gpus
-num_worker = 24
+batch_size = 1  # bs: total bs in all gpus
+num_worker = 1
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True
 
-# Sculpting params
-sculpting_transform = dict(
-    type="SculptingOcclude",
-    cube_size_min=0.1,
-    cube_size_max=0.5,
-    npoint_frac=0.004,
-    npoints=None,
-    cell_size=0.02,
-    density_factor=0.25,
-    kill_color_proba=0.5,
-    sampling="dense random",
+# scheduler settings
+epoch = 800
+optimizer = dict(type="AdamW", lr=0.006, weight_decay=0.05)
+scheduler = dict(
+    type="OneCycleLR",
+    max_lr=[0.006, 0.0006],
+    pct_start=0.05,
+    anneal_strategy="cos",
+    div_factor=10.0,
+    final_div_factor=1000.0,
 )
+param_dicts = [dict(keyword="block", lr=0.0006)]
 
-voxelize_transform = dict(
-    type="VoxelizeAgg",
-    grid_size=0.02,
-    hash_type="fnv",
-    mode="train",
-    return_grid_coord=True,
-    how_to_agg_feats=dict(
-        coord="mean",
-        color="mean",
-        segment="rand_choice",
-        normal="first",
-        instance="first",
-    ),
-)
+# dataset settings
+dataset_type = "ScanNetDataset"
+data_root = "data/scannet"
 
 # model settings
 model = dict(
@@ -42,7 +31,7 @@ model = dict(
     backbone_out_channels=64,
     backbone=dict(
         type="PT-v3m1",
-        in_channels=6,
+        in_channels=3,
         order=("z", "z-trans", "hilbert", "hilbert-trans"),
         stride=(2, 2, 2, 2),
         enc_depths=(2, 2, 2, 6, 2),
@@ -79,30 +68,35 @@ model = dict(
     ],
 )
 
-# scheduler settings
-epoch = 800
-optimizer = dict(type="AdamW", lr=0.006, weight_decay=0.05)
-scheduler = dict(
-    type="OneCycleLR",
-    max_lr=[0.006, 0.0006],
-    pct_start=0.05,
-    anneal_strategy="cos",
-    div_factor=10.0,
-    final_div_factor=1000.0,
-)
-param_dicts = [dict(keyword="block", lr=0.0006)]
-
-# dataset settings
-dataset_type = "ScanNetDataset"
-data_root = "data/scannet"
-
+# Data settings
 data = dict(
-    num_classes=2,
+    num_classes=20,
     ignore_index=-1,
-    names=["occlusion", "original"],
+    names=[
+        "wall",
+        "floor",
+        "cabinet",
+        "bed",
+        "chair",
+        "sofa",
+        "table",
+        "door",
+        "window",
+        "bookshelf",
+        "picture",
+        "counter",
+        "desk",
+        "curtain",
+        "refridgerator",
+        "shower curtain",
+        "toilet",
+        "sink",
+        "bathtub",
+        "otherfurniture",
+    ],
     train=dict(
         type=dataset_type,
-        split=["train", "val", "test", "arkit"],
+        split="train",
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
@@ -130,9 +124,6 @@ data = dict(
                 mode="train",
                 return_grid_coord=True,
             ),
-            dict(type="SphereCrop", point_max=152400, mode="random"),
-            sculpting_transform,
-            voxelize_transform,
             dict(type="SphereCrop", point_max=102400, mode="random"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
@@ -141,7 +132,7 @@ data = dict(
             dict(
                 type="Collect",
                 keys=("coord", "grid_coord", "segment"),
-                feat_keys=("color", "normal"),
+                feat_keys=("color",),
             ),
         ],
         test_mode=False,
@@ -165,7 +156,7 @@ data = dict(
             dict(
                 type="Collect",
                 keys=("coord", "grid_coord", "segment"),
-                feat_keys=("color", "normal"),
+                feat_keys=("color",),
             ),
         ],
         test_mode=False,
@@ -195,7 +186,7 @@ data = dict(
                 dict(
                     type="Collect",
                     keys=("coord", "grid_coord", "index"),
-                    feat_keys=("color", "normal"),
+                    feat_keys=("color",),
                 ),
             ],
             aug_transform=[
