@@ -1,1 +1,1 @@
-from . import sculpting, custom_hooks
+from . import sculpting, trimming, custom_hooks
