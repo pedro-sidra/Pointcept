@@ -95,6 +95,8 @@ def wandb_train(config_file, options, wandb_run=None):
 
     train_on_config(cfg)
     comm.synchronize()
+    if wandb_run:
+        wandb_run.finish()
 
     # Fine-tune
     if "FT_config" in cfg:

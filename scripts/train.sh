@@ -104,7 +104,7 @@ else
 fi
 
 echo "Loading config in:" $CONFIG_DIR
-export PYTHONPATH=./$CODE_DIR
+# export PYTHONPATH=./$CODE_DIR
 echo "Running code in: $CODE_DIR"
 
 
@@ -112,7 +112,7 @@ echo " =========> RUN TASK <========="
 
 if [ "${WEIGHT}" = "None" ]
 then
-    $PYTHON "$CODE_DIR"/tools/$TRAIN_CODE \
+     $PYTHON "$PWD"/tools/$TRAIN_CODE \
     --config-file "$CONFIG_DIR" \
     --num-gpus "$NUM_GPU" \
     --num-machines "$NUM_MACHINE" \
@@ -120,7 +120,7 @@ then
     --dist-url ${DIST_URL} \
     --options save_path="$EXP_DIR"
 else
-    $PYTHON "$CODE_DIR"/tools/$TRAIN_CODE \
+     $PYTHON "$PWD"/tools/$TRAIN_CODE \
     --config-file "$CONFIG_DIR" \
     --num-gpus "$NUM_GPU" \
     --num-machines "$NUM_MACHINE" \

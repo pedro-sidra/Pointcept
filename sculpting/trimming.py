@@ -25,13 +25,18 @@ from .sculpting import SculptingOcclude
 # TRANSFORMS = Registry("transforms")
 def get_perlin(noise_num_cells, noise_cell_size):
     noise = generate_perlin_noise_3d(
-        noise_num_cells, (2, 2, 2), tileable=(False, False, False)
+        noise_num_cells, # need to get multiple of 2
+          (2, 2, 2), tileable=(False, False, False)
     )
     i, j, k = np.indices(noise.shape)
 
     noise = noise.flatten()
 
-    locs = np.bitwise_and(noise < 0.1, noise > -0.1)
+    threshold = 0.8/noise_num_cells[0]
+    if np.random.rand()>0.5:
+        locs = np.bitwise_and(noise < threshold, noise > -threshold)
+    else:
+        locs = np.bitwise_and(noise > 1e-6, noise < 2*threshold)
 
     i = noise_cell_size * i.flatten()[locs]
     j = noise_cell_size * j.flatten()[locs]
@@ -57,13 +62,13 @@ def get_perlin_noise_on_pts(
         point = points[idx]
         f = feats[idx]
 
-        cube_size = np.random.randint(
-            _cube_size_min // cell_size, _cube_size_max // cell_size, (3,)
-        )
+        cube_size = np.random.randint( _cube_size_min // cell_size, _cube_size_max // cell_size, (3,))
+        # brain fart
+        cube_size[1:]=cube_size[0]
         cube = get_perlin(
-            noise_num_cells=cube_size[0],
-            noise_cell_size=cell_size,
-        ) + point.reshape((1, 3))
+            noise_num_cells=(cube_size//2)*2,
+            noise_cell_size=cell_size
+        ).T + point.reshape((1, 3))
 
         feat = np.ones_like(cube) * f
 
