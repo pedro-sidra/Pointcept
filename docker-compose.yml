@@ -1,0 +1,28 @@
+version: "3"
+
+services:
+  dev:
+    container_name: pointcept-dev
+    hostname: pointcept-dev
+    image: pedrosidra0/pointcept:ptv3
+    entrypoint: "./docker-entrypoint.sh"
+    command: "bash"
+    working_dir: /workspaces/Pointcept
+    volumes:
+      - .:/workspaces/Pointcept
+      - /usr/local/bin/nvim:/usr/local/bin/nvim
+      - $HOME/.config/nvim:/root/.config/nvim
+      - $HOME/.netrc:/root/.netrc
+    shm_size: "32gb"
+    privileged: true
+    stdin_open: true # docker run -i
+    tty: true # docker run -t
+    environment:
+      - TERM=xterm-256color
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

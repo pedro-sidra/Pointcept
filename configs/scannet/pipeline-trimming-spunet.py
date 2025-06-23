@@ -40,6 +40,21 @@ voxelize_transform = dict(
         instance="first",
     ),
 )
+update_index_keys = dict(
+    type="Update",
+    keys_dict={
+        "index_valid_keys": [
+            "coord",
+            "grid_coord",
+            "color",
+            "normal",
+            "superpoint",
+            "strength",
+            "segment",
+            "instance",
+        ]
+    },
+)
 
 test = dict(type="SemSegPredictor", verbose=True)
 
@@ -56,14 +71,14 @@ sculpting_data_base_configs = dict(
     ],
 )
 
-FT_config = "configs/scannet/semseg-spunet-sidra-efficient-lr100.py"
+# FT_config = "configs/scannet/semseg-spunet-sidra-efficient-lr100.py"
 
 ## ===== MODEL DEFINITION
 
 # misc custom setting
-batch_size = 2
+batch_size = 8
 num_worker = 4  # total worker in all gpu
-mix_prob = 0.8
+mix_prob = 0.25
 empty_cache = False
 enable_amp = True
 
@@ -81,7 +96,8 @@ model = dict(
 
 
 # scheduler settings
-epoch = 800
+epoch = 100
+eval_epoch = 100
 optimizer = dict(type="SGD", lr=0.05, momentum=0.9, weight_decay=0.0001, nesterov=True)
 scheduler = dict(
     type="OneCycleLR",
@@ -104,7 +120,7 @@ data = dict(
             "train",
             "val",
             "test",
-            "arkit",
+            # "arkit",
         ],
         data_root=data_root,
         transform=[
@@ -129,6 +145,7 @@ data = dict(
             dict(type="SphereCrop", point_max=150000, mode="random"),
             sculpting_transform,
             voxelize_transform,
+            update_index_keys,
             dict(type="SphereCrop", point_max=120000, mode="random"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
@@ -151,7 +168,8 @@ data = dict(
             dict(type="CenterShift", apply_z=True),
             sculpting_transform,
             voxelize_transform,
-            # dict(type="SphereCrop", point_max=1000000, mode="center"),
+            update_index_keys,
+            dict(type="SphereCrop", point_max=1000000, mode="center"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
             dict(type="ToTensor"),
@@ -172,6 +190,7 @@ data = dict(
             dict(type="CenterShift", apply_z=True),
             sculpting_transform,
             voxelize_transform,
+            update_index_keys,
             dict(type="NormalizeColor"),
             dict(type="ToTensor"),
             dict(

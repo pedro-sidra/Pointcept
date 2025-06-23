@@ -17,12 +17,12 @@ hooks = [
 sculpting_transform = dict(
     type="SculptingOcclude",
     cube_size_min=0.1,
-    cube_size_max=0.5,
-    npoint_frac=0.002,
-    npoints=None,
+    cube_size_max=0.3,
+    npoint_frac=None,
+    npoints=1,
     cell_size=0.02,
-    density_factor=0.25,
-    kill_color_proba=0.5,
+    density_factor=0.9,
+    kill_color_proba=0.0,
     sampling="dense random",
 )
 
@@ -61,7 +61,7 @@ FT_config = "configs/scannet/semseg-spunet-sidra-efficient-lr100.py"
 ## ===== MODEL DEFINITION
 
 # misc custom setting
-batch_size = 2
+batch_size = 8
 num_worker = 4  # total worker in all gpu
 mix_prob = 0.8
 empty_cache = False
@@ -127,9 +127,9 @@ data = dict(
             # dict(type="HueSaturationTranslation", hue_max=0.2, saturation_max=0.2),
             dict(type="RandomColorDrop", p=0.5, color_augment=0.0),
             dict(type="SphereCrop", point_max=150000, mode="random"),
-            #sculpting_transform,
+            sculpting_transform,
             voxelize_transform,
-            dict(type="SphereCrop", point_max=120000, mode="random"),
+            # dict(type="SphereCrop", point_max=120000, mode="random"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
             # dict(type="ShufflePoint"),
