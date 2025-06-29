@@ -76,12 +76,15 @@ echo "Config: $CONFIG"
 echo "GPU Num: $NUM_GPU"
 echo "Machine Num: $NUM_MACHINE"
 
-if [ -n "$SLURM_NODELIST" ]; then
-  MASTER_HOSTNAME=$(scontrol show hostname "$SLURM_NODELIST" | head -n 1)
-  MASTER_ADDR=$(getent hosts "$MASTER_HOSTNAME" | awk '{ print $1 }')
-  MASTER_PORT=$((10000 + 0x$(echo -n "${DATASET}/${EXP_NAME}" | md5sum | cut -c 1-4 | awk '{print $1}') % 20000))
-  DIST_URL=tcp://$MASTER_ADDR:$MASTER_PORT
-fi
+# if [ -n "$DIST_URL" ]; then
+#   DIST_URL="auto"
+# fi
+# if [ -n "$SLURM_NODELIST" ]; then
+#   MASTER_HOSTNAME=$(scontrol show hostname "$SLURM_NODELIST" | head -n 1)
+#   MASTER_ADDR=$(getent hosts "$MASTER_HOSTNAME" | awk '{ print $1 }')
+#   MASTER_PORT=$((10000 + 0x$(echo -n "${DATASET}/${EXP_NAME}" | md5sum | cut -c 1-4 | awk '{print $1}') % 20000))
+#   DIST_URL=tcp://$MASTER_ADDR:$MASTER_PORT
+# fi
 
 echo "Dist URL: $DIST_URL"
 

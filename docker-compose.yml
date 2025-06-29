@@ -4,7 +4,7 @@ services:
   dev:
     container_name: pointcept-dev
     hostname: pointcept-dev
-    image: pedrosidra0/pointcept:ptv3
+    image: pedrosidra0/pointcept:v4.1
     entrypoint: "./docker-entrypoint.sh"
     command: "bash"
     working_dir: /workspaces/Pointcept
