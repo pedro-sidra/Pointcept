@@ -1,6 +1,7 @@
 import wandb
 import os
 import pandas as pd
+from pathlib import Path
 import torch
 from collections import OrderedDict
 import pointcept.utils.comm as comm
@@ -87,7 +88,7 @@ class CheckpointSaverWandb(CheckpointSaver):
 
     def after_epoch(self):
         super().after_epoch()
-        if is_main_process():
+        if is_main_process() and (self.save_freq and (self.trainer.epoch + 1) % self.save_freq == 0):
             # our super() saved it here
             filename = os.path.join(
                 self.trainer.cfg.save_path, "model", "model_last.pth"
@@ -103,9 +104,10 @@ class CheckpointSaverWandb(CheckpointSaver):
             )
 
             # use os.stat to check modified time because i don't wanna actually check the file contents
-            if os.stat(model_best).st_atime != self.last_model_best_stat.st_atime:
-                wandb.log_model(model_best, name=f"{wandb.run.id}-model_best")
-                self.delete_oldest_artifact_version(name_part="model_best")
+            if Path(model_best).is_file():
+                if os.stat(model_best).st_atime != self.last_model_best_stat.st_atime:
+                    wandb.log_model(model_best, name=f"{wandb.run.id}-model_best")
+                    self.delete_oldest_artifact_version(name_part="model_best")
 
-            self.last_model_best_stat = os.stat(model_best)
+                self.last_model_best_stat = os.stat(model_best)
 

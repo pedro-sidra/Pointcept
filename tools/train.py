@@ -53,12 +53,12 @@ def train_on_config(cfg):
     trainer = TRAINERS.build(dict(type=cfg.train.type, cfg=cfg))
     trainer.train()
 
-    # Wandb model save
-    if comm.is_main_process():
-        filename = Path(cfg.save_path) / "model" / "model_best.pth"
-        wandb.log_model(path=str(filename))
-        filename = Path(cfg.save_path) / "model" / "model_last.pth"
-        wandb.log_model(path=str(filename))
+    # # Wandb model save
+    # if comm.is_main_process():
+    #     filename = Path(cfg.save_path) / "model" / "model_best.pth"
+    #     wandb.log_model(path=str(filename))
+    #     filename = Path(cfg.save_path) / "model" / "model_last.pth"
+    #     wandb.log_model(path=str(filename))
 
 
 def wandb_train(config_file, options, wandb_run=None):
