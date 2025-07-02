@@ -8,7 +8,7 @@ clip_grad = 3.0
 empty_cache = False
 enable_amp = True
 amp_dtype = "bfloat16"
-evaluate = False
+evaluate = True
 find_unused_parameters = False
 
 

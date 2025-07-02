@@ -77,7 +77,7 @@ sculpting_data_base_configs = dict(
 
 # misc custom setting
 batch_size = 16  # bs: total bs in all gpus
-num_worker = 8
+num_worker = 16
 mix_prob = 0
 clip_grad = 3.0
 empty_cache = False
@@ -107,7 +107,7 @@ optimizer = dict(type="SGD", lr=0.1, momentum=0.8, weight_decay=0.0001, nesterov
 scheduler = dict(
     type="OneCycleLR",
     max_lr=optimizer["lr"],
-    pct_start=0.01,
+    pct_start=0.05,
     anneal_strategy="cos",
     div_factor=10.0,
     final_div_factor=10000.0,
