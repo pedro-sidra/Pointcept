@@ -1,7 +1,7 @@
 _base_ = ["../_base_/default_runtime.py"]
 
 # wandb_off = 1
-enable_wandb=False
+enable_wandb = False
 
 # No precise evaluator because it breaks sculpting
 hooks = [

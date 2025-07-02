@@ -1,14 +1,19 @@
-from pointcept.models.point_transformer_v3.point_transformer_v3m2_sonata import PointTransformerV3, MODELS
+from pointcept.models.point_transformer_v3.point_transformer_v3m2_sonata import (
+    PointTransformerV3,
+)
+import torch
+from pointcept.models.builder import MODELS
+
 
 @MODELS.register_module("PT-v3m3")
 class PointTransformerV3_Upcasting(PointTransformerV3):
     def __init__(
         self,
-        **kwargs,
         up_cast_level=2,
+        **kwargs,
     ):
         super().__init__(**kwargs)
-        self.up_cast_level=up_cast_level
+        self.up_cast_level = up_cast_level
 
     def up_cast(self, point):
         for _ in range(self.up_cast_level):
@@ -21,8 +26,6 @@ class PointTransformerV3_Upcasting(PointTransformerV3):
         return point
 
     def forward(self, data_dict):
-        point = self.up_cast(
-            point=super().forward(data_dict)
-        )
-        
-        return dict(point=point)
+        point = self.up_cast(point=super().forward(data_dict))
+
+        return point
