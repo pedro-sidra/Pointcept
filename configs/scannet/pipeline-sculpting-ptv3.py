@@ -16,14 +16,14 @@ hooks = [
 # Sculpting params
 sculpting_transform = dict(
     type="SculptingOcclude",
-    cube_size_min=0.2,
-    cube_size_max=0.3,
-    npoint_frac=None,
-    npoints=1,
+    cube_size_min=0.4,
+    cube_size_max=0.5,
+    npoint_frac=1e-3,
+    npoints=None,
     cell_size=0.02,
     density_factor=1.0,
     kill_color_proba=0.0,
-    sampling="dense random",
+    sampling="dense",
 )
 update_index_keys = dict(
     type="Update",
@@ -77,8 +77,8 @@ sculpting_data_base_configs = dict(
 ## ===== MODEL DEFINITION
 
 # misc custom setting
-batch_size = 6  # bs: total bs in all gpus
-num_worker = 6
+batch_size = 12  # bs: total bs in all gpus
+num_worker = 12
 mix_prob = 0
 clip_grad = 3.0
 empty_cache = False
