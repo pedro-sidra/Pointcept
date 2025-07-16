@@ -16,14 +16,30 @@ hooks = [
 # Sculpting params
 sculpting_transform = dict(
     type="TrimmingOcclude",
-    cube_size_min=0.2,
-    cube_size_max=0.3,
-    npoint_frac=0.002,
+    cube_size_min=0.4,
+    cube_size_max=0.5,
+    npoint_frac=1e-3,
     npoints=None,
     cell_size=0.02,
     density_factor=0.25,
     kill_color_proba=0.0,
     sampling="dense random",
+)
+
+update_index_keys = dict(
+    type="Update",
+    keys_dict={
+        "index_valid_keys": [
+            "coord",
+            "grid_coord",
+            "color",
+            "normal",
+            "superpoint",
+            "strength",
+            "segment",
+            "instance",
+        ]
+    },
 )
 
 

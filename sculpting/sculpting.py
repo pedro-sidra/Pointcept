@@ -157,7 +157,7 @@ class SculptingOcclude(object):
         semantic_label = data_dict.get("segment", np.ones(len(xyz), dtype=int))
 
         if self.npoints is None:
-            ncubes = int(self.npoint_frac * len(xyz))
+            ncubes = max(int(self.npoint_frac * len(xyz)),1)
         else:
             ncubes = self.npoints
 
