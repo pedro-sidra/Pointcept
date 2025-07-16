@@ -1,7 +1,7 @@
 _base_ = ["../_base_/default_runtime.py"]
 
 # wandb_off = 1
-enable_wandb=False
+enable_wandb = False
 
 # No precise evaluator because it breaks sculpting
 hooks = [
@@ -16,14 +16,29 @@ hooks = [
 # Sculpting params
 sculpting_transform = dict(
     type="SculptingOcclude",
-    cube_size_min=0.2,
-    cube_size_max=0.3,
-    npoint_frac=None,
-    npoints=1,
+    cube_size_min=0.1,
+    cube_size_max=0.4,
+    npoint_frac=6e-4,
+    npoints=None,
     cell_size=0.02,
     density_factor=1.0,
     kill_color_proba=0.0,
-    sampling="dense random",
+    sampling="dense",
+)
+
+voxelize_transform = dict(
+    type="VoxelizeAgg",
+    grid_size=0.02,
+    hash_type="fnv",
+    mode="train",
+    return_grid_coord=True,
+    how_to_agg_feats=dict(
+        coord="mean",
+        color="mean",
+        segment="rand_choice",
+        normal="first",
+        instance="first",
+    ),
 )
 update_index_keys = dict(
     type="Update",
@@ -41,20 +56,6 @@ update_index_keys = dict(
     },
 )
 
-voxelize_transform = dict(
-    type="VoxelizeAgg",
-    grid_size=0.02,
-    hash_type="fnv",
-    mode="train",
-    return_grid_coord=True,
-    how_to_agg_feats=dict(
-        coord="mean",
-        color="mean",
-        segment="rand_choice",
-        normal="first",
-        instance="first",
-    ),
-)
 
 # test = dict(type="SemSegPredictor", verbose=True)
 
@@ -78,7 +79,7 @@ sculpting_data_base_configs = dict(
 # misc custom setting
 batch_size = 16  # bs: total bs in all gpus
 num_worker = 16
-mix_prob = 0
+mix_prob = 0.8
 clip_grad = 3.0
 empty_cache = False
 enable_amp = True
@@ -103,6 +104,7 @@ model = dict(
 epoch = 100
 eval_epoch = 100
 optimizer = dict(type="SGD", lr=0.1, momentum=0.8, weight_decay=0.0001, nesterov=True)
+
 
 scheduler = dict(
     type="OneCycleLR",

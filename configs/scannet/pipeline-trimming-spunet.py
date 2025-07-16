@@ -16,14 +16,14 @@ hooks = [
 # Sculpting params
 sculpting_transform = dict(
     type="TrimmingOcclude",
-    cube_size_min=0.2,
-    cube_size_max=0.3,
-    npoint_frac=0.002,
+    cube_size_min=0.1,
+    cube_size_max=0.4,
+    npoint_frac=6e-3,
     npoints=None,
     cell_size=0.02,
-    density_factor=0.25,
+    density_factor=1.0,
     kill_color_proba=0.0,
-    sampling="dense random",
+    sampling="dense",
 )
 
 voxelize_transform = dict(
@@ -56,7 +56,8 @@ update_index_keys = dict(
     },
 )
 
-test = dict(type="SemSegPredictor", verbose=True)
+
+# test = dict(type="SemSegPredictor", verbose=True)
 
 tta_identity = [
     [dict(type="RandomRotateTargetAngle", angle=[0], axis="z", center=[0, 0, 0], p=1)]
@@ -78,7 +79,7 @@ sculpting_data_base_configs = dict(
 # misc custom setting
 batch_size = 16  # bs: total bs in all gpus
 num_worker = 16
-mix_prob = 0
+mix_prob = 0.8
 clip_grad = 3.0
 empty_cache = False
 enable_amp = True
@@ -103,6 +104,8 @@ model = dict(
 epoch = 100
 eval_epoch = 100
 optimizer = dict(type="SGD", lr=0.1, momentum=0.8, weight_decay=0.0001, nesterov=True)
+
+
 scheduler = dict(
     type="OneCycleLR",
     max_lr=optimizer["lr"],
@@ -133,9 +136,9 @@ data = dict(
             #    type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=0.2
             # ),
             # dict(type="RandomRotateTargetAngle", angle=(1/2, 1, 3/2), center=[0, 0, 0], axis="z", p=0.75),
-            dict(type="RandomRotate", angle=[-1, 1], axis="z", center=[0, 0, 0], p=0.5),
-            dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis="x", p=0.5),
-            dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis="y", p=0.5),
+            dict(type="RandomRotate", angle=[-1, 1], axis="z", center=[0, 0, 0], p=1.0),
+            dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis="x", p=0.2),
+            dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis="y", p=0.2),
             dict(type="RandomScale", scale=[0.9, 1.1]),
             # dict(type="RandomShift", shift=[0.2, 0.2, 0.2]),
             dict(type="RandomFlip", p=0.5),
@@ -147,9 +150,9 @@ data = dict(
             # dict(type="HueSaturationTranslation", hue_max=0.2, saturation_max=0.2),
             dict(type="RandomColorDrop", p=0.2, color_augment=0.0),
             dict(type="SphereCrop", point_max=150000, mode="random"),
+            update_index_keys,
             sculpting_transform,
             voxelize_transform,
-            update_index_keys,
             dict(type="SphereCrop", point_max=120000, mode="random"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),

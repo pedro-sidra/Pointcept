@@ -8,17 +8,30 @@ services:
     entrypoint: "./docker-entrypoint.sh"
     command: "bash"
     working_dir: /workspaces/Pointcept
+    network_mode: host
+    environment: 
+      - TERM=xterm-256color
+      # - SLURM_NODEID 
+      # - DIST_URL 
+      # - WORLD_SIZE 
+      # - MASTER_PORT 
+      # - MASTER_ADDR
+    # ports:
+    #   - "23450:23450"
+    #   - "23451:23451"
+    #   - "23452:23452"
+    #   - "23453:23453"
+    #   - "23454:23454"
+    #   - "23455:23455"
+    #   - "23456:23456"
+
     volumes:
       - .:/workspaces/Pointcept
-      - /usr/local/bin/nvim:/usr/local/bin/nvim
-      - $HOME/.config/nvim:/root/.config/nvim
       - $HOME/.netrc:/root/.netrc
     shm_size: "32gb"
-    privileged: true
+    privileged: false
     stdin_open: true # docker run -i
     tty: true # docker run -t
-    environment:
-      - TERM=xterm-256color
     deploy:
       resources:
         reservations:

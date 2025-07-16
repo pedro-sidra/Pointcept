@@ -1,8 +1,8 @@
 _base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
-batch_size = 4  # bs: total bs in all gpus
-num_worker = 4
+batch_size = 12  # bs: total bs in all gpus
+num_worker = 12
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True
@@ -21,8 +21,9 @@ model = dict(
 )
 
 # scheduler settings
-epoch = 2
-eval_epoch = 2
+epoch = 800
+eval_epoch = 100
+
 optimizer = dict(type="SGD", lr=0.05, momentum=0.9, weight_decay=0.0001, nesterov=True)
 scheduler = dict(
     type="OneCycleLR",
@@ -66,7 +67,7 @@ data = dict(
         type=dataset_type,
         split="train",
         data_root=data_root,
-        lr_file="data/scannet/tasks/scenes/1.txt",
+        lr_file="data/scannet/tasks/scenes/5.txt",
         transform=[
             dict(type="CenterShift", apply_z=True),
             dict(
