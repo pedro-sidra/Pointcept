@@ -1,5 +1,19 @@
 _base_ = ["../_base_/default_runtime.py"]
 
+hooks = [
+    dict(
+        type="CheckpointLoaderAllowMismatch",
+        # For sonata, doesn't break other methods so always here
+        keywords="module.student.backbone",
+        replacement="module.backbone",
+    ),
+    dict(type="IterationTimer", warmup_iter=2),
+    dict(type="InformationWriter"),
+    dict(type="SemSegEvaluator"),
+    dict(type="CheckpointSaverWandb", save_freq=5),
+    # dict(type="PreciseEvaluator", test_last=False),
+]
+
 # misc custom setting
 batch_size = 12  # bs: total bs in all gpus
 num_worker = 12
