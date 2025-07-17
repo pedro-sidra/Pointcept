@@ -107,6 +107,16 @@ class VoxelizeAgg(object):
                     )
                     / count[:, np.newaxis]
                 )
+            elif agg_func == "max":
+                data_dict[var_name] = np.maximum.reduceat(
+                    data_dict[var_name][idx_sort],
+                    np.cumsum(np.insert(count, 0, 0)[0:-1]),
+                )
+            elif agg_func == "min":
+                data_dict[var_name] = np.minimum.reduceat(
+                    data_dict[var_name][idx_sort],
+                    np.cumsum(np.insert(count, 0, 0)[0:-1]),
+                )
 
         if self.return_inverse:
             data_dict["inverse"] = np.zeros_like(inverse)
@@ -157,7 +167,7 @@ class SculptingOcclude(object):
         semantic_label = data_dict.get("segment", np.ones(len(xyz), dtype=int))
 
         if self.npoints is None:
-            ncubes = max(int(self.npoint_frac * len(xyz)),1)
+            ncubes = max(int(self.npoint_frac * len(xyz)), 1)
         else:
             ncubes = self.npoints
 
@@ -222,17 +232,19 @@ class SculptingOcclude(object):
 class SculptingMaskOcclude(object):
     def __init__(
         self,
+        enable_feat_masking=True,
         mask_size=0.2,
         mask_ratio=0.5,
         cell_size=0.02,
         density_factor=0.1,
     ):
+        self.enable_feat_masking = enable_feat_masking
         self.mask_size = mask_size
         self.mask_ratio = mask_ratio
         self.cell_size = cell_size
         self.density_factor = density_factor
 
-    def get_sculpting_blocks_mask(
+    def get_sculpting_blocks_and_mask(
         self,
         coord,
     ):
@@ -249,7 +261,9 @@ class SculptingMaskOcclude(object):
         grid_coord = ((coord - min_coord) // MASK_SIZE).astype(np.int32)
 
         # get voxel ids
-        unique_cells = torch.unique(torch.tensor(grid_coord), dim=0)
+        unique_cells, clusters = torch.unique(
+            torch.tensor(grid_coord), dim=0, return_inverse=True
+        )
 
         # Pick cells for masking
         ncells = unique_cells.shape[0]
@@ -273,7 +287,8 @@ class SculptingMaskOcclude(object):
         np.random.shuffle(rand_picks)
         offsetted = offsetted[rand_picks[: int(SCULPT_CELL_DENSITY * len(offsetted))]]
 
-        return offsetted
+        mask = torch.isin(clusters, picked_cells).int()
+        return offsetted.numpy(), mask.numpy()
 
     def get_random_colors(self, size, low=0, high=255):
         return np.random.randint(low, high, size).astype(np.float32)
@@ -284,37 +299,35 @@ class SculptingMaskOcclude(object):
         return n
 
     def __call__(self, data_dict):
-
+        # Input PC data
         xyz = data_dict["coord"]
         rgb = data_dict.get("color", self.get_random_colors(xyz.shape))
         normal = data_dict.get("normal", self.get_random_normals(xyz.shape))
 
-        semantic_label = data_dict.get("segment", np.ones(len(xyz), dtype=int))
+        # Will be passed through SonataLikeSculptor.before_train
+        self.mask_ratio = data_dict.get("mask_ratio", self.mask_ratio)
+        self.mask_size = data_dict.get("mask_size", self.mask_size)
 
-        cubes = self.get_sculpting_blocks_mask(xyz)
+        cubes, mask = self.get_sculpting_blocks_and_mask(xyz)
+
+        # mask will be 0 for original points, 1 for sculpted points, 2 for masked points
+        mask = np.hstack((mask * 2, torch.full((len(cubes),), 1))).astype(np.int32)
 
         xyz = np.vstack([xyz, cubes])
 
-        rgb = np.vstack([rgb, self.get_random_colors(cubes.shape)])
+        rgb = np.vstack([rgb, 0.0 * self.get_random_colors(cubes.shape)])
 
         if normal is not None:
             rand_normals = self.get_random_normals(cubes.shape)
-            normal = np.vstack([normal, rand_normals])
+            normal = np.vstack([normal, 0.0 * rand_normals])
 
-        # Randomly turn colors off
-        # if np.random.rand() < self.kill_color_proba:
-        #     rgb = rgb * 0.0 + np.random.rand() * 255
-
-        dummy_cube = np.ones(len(cubes), dtype=np.int32)
-        dummy_pc = np.ones_like(semantic_label, dtype=np.int32)
-
-        semantic_label = np.hstack([dummy_pc, 0 * dummy_cube])
-        instance_label = np.hstack([-1 * dummy_pc, -1 * dummy_cube])
+        if self.enable_feat_masking:
+            rgb[mask == 2] = [0.0, 0.0, 0.0]
+            normal[mask == 2] = [0.0, 0.0, 0.0]
 
         data_dict["coord"] = xyz.astype(np.float32)
         data_dict["color"] = rgb.astype(np.float32)
-        data_dict["segment"] = semantic_label.astype(np.int32)
         data_dict["normal"] = normal.astype(np.float32)
-        data_dict["instance"] = instance_label.astype(np.int32)
+        data_dict["mask"] = mask.astype(np.int32)
 
         return data_dict
