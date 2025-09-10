@@ -15,12 +15,16 @@ from pointcept.engines.launch import launch
 from pathlib import Path
 import wandb
 
+import sculpting
+
 
 def main_worker(cfg):
     cfg = default_setup(cfg)
+
     if (cfg.weight) and (not Path(cfg.weight).is_file()):
         download = wandb.Api().artifact(cfg.weight).download()
         cfg.weight = next(Path(download).glob("*.pth"))
+
     tester = TESTERS.build(dict(type=cfg.test.type, cfg=cfg))
     tester.test()
 
