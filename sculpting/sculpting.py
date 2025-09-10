@@ -244,6 +244,22 @@ class SculptingMaskOcclude(object):
         self.cell_size = cell_size
         self.density_factor = density_factor
 
+    def hash(self, arr):
+        """
+        FNV64-1A
+        """
+        assert arr.ndim == 2
+        # Floor first for negative coordinates
+        arr = arr.copy()
+        arr = arr.astype(np.uint64, copy=False)
+        hashed_arr = np.uint64(14695981039346656037) * np.ones(
+            arr.shape[0], dtype=np.uint64
+        )
+        for j in range(arr.shape[1]):
+            hashed_arr *= np.uint64(1099511628211)
+            hashed_arr = np.bitwise_xor(hashed_arr, arr[:, j])
+        return hashed_arr
+
     def get_sculpting_blocks_and_mask(
         self,
         coord,
@@ -260,15 +276,29 @@ class SculptingMaskOcclude(object):
         min_coord = np.min(coord, axis=0)
         grid_coord = ((coord - min_coord) // MASK_SIZE).astype(np.int32)
 
-        # get voxel ids
-        unique_cells, clusters = torch.unique(
-            torch.tensor(grid_coord), dim=0, return_inverse=True
+        # # get voxel ids
+        # unique_cells, clusters = torch.unique(
+        #     torch.tensor(grid_coord), dim=0, return_inverse=True
+        # )
+
+        # Hash of the grid coords -> to group the unique voxel coords
+        key = self.hash(grid_coord)
+        idx_sort = np.argsort(key)
+        key_sort = key[idx_sort]
+
+        # unique values of the key
+        # inverse: mapping from points to voxels (p2v_map)
+        # count: points per voxel
+        unique_cells, clusters = np.unique(
+            key_sort,
+            return_inverse=True,
         )
+        unique_cells = grid_coord[idx_sort][clusters]
 
         # Pick cells for masking
         ncells = unique_cells.shape[0]
         ncubes = int(ncells * MASK_RATIO)
-        picked_cells = torch.randint(low=0, high=ncells, size=(ncubes,))
+        picked_cells = np.random.randint(low=0, high=ncells, size=(ncubes,))
 
         # Voxel coordinates of picked cells
         p0s = unique_cells[picked_cells]
@@ -287,8 +317,8 @@ class SculptingMaskOcclude(object):
         np.random.shuffle(rand_picks)
         offsetted = offsetted[rand_picks[: int(SCULPT_CELL_DENSITY * len(offsetted))]]
 
-        mask = torch.isin(clusters, picked_cells).int()
-        return offsetted.numpy(), mask.numpy()
+        mask = np.isin(clusters, picked_cells).astype(int)
+        return offsetted, mask
 
     def get_random_colors(self, size, low=0, high=255):
         return np.random.randint(low, high, size).astype(np.float32)
@@ -329,5 +359,7 @@ class SculptingMaskOcclude(object):
         data_dict["color"] = rgb.astype(np.float32)
         data_dict["normal"] = normal.astype(np.float32)
         data_dict["mask"] = mask.astype(np.int32)
+        data_dict.pop("segment")
+        data_dict.pop("instance")
 
         return data_dict

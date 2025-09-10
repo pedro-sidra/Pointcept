@@ -5,7 +5,8 @@ from pathlib import Path
 import torch
 from collections import OrderedDict
 import pointcept.utils.comm as comm
-from pointcept.engines.hooks import CheckpointLoader, CheckpointSaver, is_main_process, HOOKS
+from pointcept.engines.hooks import CheckpointLoader, CheckpointSaver, is_main_process, HOOKS, HookBase
+from pointcept.utils.scheduler import CosineScheduler
 
 @HOOKS.register_module()
 class CheckpointLoaderAllowMismatch(CheckpointLoader):
@@ -111,3 +112,76 @@ class CheckpointSaverWandb(CheckpointSaver):
 
                 self.last_model_best_stat = os.stat(model_best)
 
+
+@HOOKS.register_module()
+class MaskSizeScheduler(HookBase):
+    def __init__(
+        self,
+        mask_size_start=0.1,
+        mask_size_end=0.1,
+        mask_size_base=0.4,
+        mask_size_warmup_ratio=0.05,
+        mask_ratio_start=0.3,
+        mask_ratio_end=0.1,
+        mask_ratio_base=0.7,
+        mask_ratio_warmup_ratio=0.05,
+    ):
+        # masking and scheduler
+        self.mask_size = mask_size_start
+        self.mask_size_start = mask_size_start
+        self.mask_size_end = mask_size_end
+        self.mask_size_base = mask_size_base
+        self.mask_size_warmup_ratio = mask_size_warmup_ratio
+        self.mask_size_scheduler = None
+
+        self.mask_ratio = mask_ratio_start
+        self.mask_ratio_start = mask_ratio_start
+        self.mask_ratio_end = mask_ratio_end
+        self.mask_ratio_base = mask_ratio_base
+        self.mask_ratio_warmup_ratio = mask_ratio_warmup_ratio
+        self.mask_ratio_scheduler = None
+
+    def before_train(self):
+        # make ModelHook after CheckPointLoader
+        total_steps = self.trainer.cfg.scheduler.total_steps
+        curr_step = self.trainer.start_epoch * len(self.trainer.train_loader)
+        # mask size scheduler
+        self.mask_size_scheduler = CosineScheduler(
+            start_value=self.mask_size_start,
+            base_value=self.mask_size_base,
+            final_value=self.mask_size_end,
+            warmup_iters=int(total_steps * self.mask_size_warmup_ratio),
+            total_iters=total_steps,
+        )
+        self.mask_size_scheduler.iter = curr_step
+
+        # mask ratio scheduler
+        self.mask_ratio_scheduler = CosineScheduler(
+            start_value=self.mask_ratio_start,
+            base_value=self.mask_ratio_base,
+            final_value=self.mask_ratio_end,
+            warmup_iters=int(total_steps * self.mask_ratio_warmup_ratio),
+            total_iters=total_steps,
+        )
+        self.mask_ratio_scheduler.iter = curr_step
+
+    def before_step(self):
+        # update parameters from schedulers
+        self.mask_size = self.mask_size_scheduler.step()
+        self.mask_ratio = self.mask_ratio_scheduler.step()
+
+        self.trainer.comm_info["input_dict"]["mask_size"] = self.mask_size
+        self.trainer.comm_info["input_dict"]["mask_ratio"] = self.mask_ratio
+
+
+        if self.trainer.writer is not None:
+            self.trainer.writer.add_scalar(
+                "params/mask_size",
+                self.mask_size,
+                self.mask_size_scheduler.iter,
+            )
+            self.trainer.writer.add_scalar(
+                "params/mask_ratio",
+                self.mask_ratio,
+                self.mask_ratio_scheduler.iter,
+            )

@@ -25,6 +25,8 @@ from pointcept.utils.comm import get_world_size, all_gather
 from pointcept.utils.scheduler import CosineScheduler
 from pointcept.datasets.transform import TRANSFORMS
 
+from timm.layers import trunc_normal_
+
 
 @MODELS.register_module("SonataSculptor-v1m1")
 class SonataLikeSculptor(Sonata):
@@ -52,18 +54,20 @@ class SonataLikeSculptor(Sonata):
         mask_loss_weight=2 / 12,
         roll_mask_loss_weight=2 / 12,
         unmask_loss_weight=4 / 12,
-        sculpt_loss_weight=4 / 12,
         momentum_base=0.996,
         momentum_final=1,
         match_max_k=8,
         match_max_r=0.08,
         up_cast_level=2,
+        # Sculpting
+        sculpt_loss_weight=4 / 12,
+        reconstruct_loss_weight=4 / 12,
     ):
         super(Sonata, self).__init__()
+        # Sonata stuff
         self.mask_loss_weight = mask_loss_weight
         self.roll_mask_loss_weight = roll_mask_loss_weight
         self.unmask_loss_weight = unmask_loss_weight
-        self.sculpt_loss_weight = sculpt_loss_weight
 
         self.num_global_view = num_global_view
         self.num_local_view = num_local_view
@@ -137,18 +141,34 @@ class SonataLikeSculptor(Sonata):
             student_model_dict["unmask_head"] = head()
             teacher_model_dict["unmask_head"] = head()
 
+        # Sculpting additions
         features_to_reconstruct = backbone["in_channels"]
+        self.sculpt_loss_weight = sculpt_loss_weight
+        self.mask_token = nn.Parameter(torch.zeros(1, features_to_reconstruct ))
+        trunc_normal_(self.mask_token, mean=0.0, std=0.02)
+
         student_model_dict["sculpt_head"] = nn.Sequential(
+            nn.Linear(head_in_channels, head_hidden_channels),
+            nn.GELU(),
+            nn.Linear(head_hidden_channels, 2),
+        )
+        teacher_model_dict["sculpt_head"] = nn.Sequential(
+            nn.Linear(head_in_channels, head_hidden_channels),
+            nn.GELU(),
+            nn.Linear(head_hidden_channels, 2),
+        )
+        student_model_dict["reconstruct_head"] = nn.Sequential(
             nn.Linear(head_in_channels, head_hidden_channels),
             nn.GELU(),
             nn.Linear(head_hidden_channels, features_to_reconstruct),
         )
-        teacher_model_dict["sculpt_head"] = nn.Sequential(
+        teacher_model_dict["reconstruct_head"] = nn.Sequential(
             nn.Linear(head_in_channels, head_hidden_channels),
             nn.GELU(),
             nn.Linear(head_hidden_channels, features_to_reconstruct),
         )
 
+        # Sonata stuff
         self.student = nn.ModuleDict(student_model_dict)
         self.teacher = nn.ModuleDict(teacher_model_dict)
         for k, v in self.student.items():
@@ -199,7 +219,7 @@ class SonataLikeSculptor(Sonata):
             gt_noblock = global_point.feat
 
             masked_feats = feat.clone()
-            masked_feats[mask != 0] = 0  # zero-out when masked or cube
+            masked_feats[mask != 0] = self.mask_token  # zero-out when masked or cube
 
             mask_global_point = Point(
                 feat=masked_feats,
@@ -296,7 +316,7 @@ class SonataLikeSculptor(Sonata):
 
                 sculpt_loss = (
                     torch.sum((pred_noblock - gt_noblock) ** 2)
-                    + torch.sum((pred_block) ** 2)
+                    + torch.sum((pred_block - 0) ** 2)
                 ) / (pred_noblock.shape[0] + pred_block.shape[0])
 
                 result_dict["sculpt_loss"] = sculpt_loss

@@ -19,13 +19,17 @@ from pointcept.models.sparse_unet.spconv_unet_v1m1_base import BasicBlock, SpUNe
 @MODELS.register_module("SpUNet-v2m1")
 class SpUNetWithPointStructure(SpUNetBase):
     def forward(self, point):
+
         if not isinstance(point, Point):
-            point = Point(point)
+            out_point = Point(point)
+        else:
+            out_point=Point(point)
+
 
         point.sparsify()
 
         feat = super().forward(point)
-        point.sparse_conv_feat = point.sparse_conv_feat.replace_feature(feat)
-        point.feat = feat
+        out_point.sparse_conv_feat = point.sparse_conv_feat.replace_feature(feat)
+        out_point.feat = feat
 
-        return point
+        return out_point
