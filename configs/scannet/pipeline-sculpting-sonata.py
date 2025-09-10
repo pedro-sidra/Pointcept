@@ -77,8 +77,8 @@ sculpting_data_base_configs = dict(
 ## ===== MODEL DEFINITION
 
 # misc custom setting
-batch_size = 6  # bs: total bs in all gpus
-num_worker = 6
+batch_size = 16  # bs: total bs in all gpus
+num_worker = 16
 mix_prob = 0
 clip_grad = 3.0
 empty_cache = False
@@ -91,7 +91,7 @@ find_unused_parameters = False
 model = dict(
     type="DefaultSegmentorV2",
     num_classes=2,
-    backbone_out_channels=64,
+    backbone_out_channels=992,
     backbone=dict(
         type="PT-v3m3",
         in_channels=3,
@@ -125,7 +125,7 @@ model = dict(
 
 # scheduler settings
 epoch = 200
-optimizer = dict(type="AdamW", lr=0.006, weight_decay=0.05)
+optimizer = dict(type="AdamW", lr=0.001, weight_decay=0.01)
 scheduler = dict(
     type="OneCycleLR",
     max_lr=[0.006, 0.0006],
@@ -134,7 +134,7 @@ scheduler = dict(
     div_factor=10.0,
     final_div_factor=1000.0,
 )
-param_dicts = [dict(keyword="block", lr=0.0006)]
+param_dicts = [dict(keyword="block", lr=0.0004)]
 
 # dataset settings
 dataset_type = "ScanNetDataset"

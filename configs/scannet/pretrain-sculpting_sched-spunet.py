@@ -8,22 +8,26 @@ hooks = [
     dict(type="CheckpointLoaderAllowMismatch"),
     dict(type="IterationTimer", warmup_iter=2),
     dict(type="InformationWriter"),
-    # dict(type="SemSegEvaluator"),
+    dict(type="MaskSizeScheduler",
+        mask_size_start=0.1,
+        mask_size_base=0.4,
+        mask_size_warmup_ratio=0.05,
+        mask_ratio_start=0.3,
+        mask_ratio_base=0.7,
+        mask_ratio_warmup_ratio=0.05,
+    ),
     dict(type="CheckpointSaverWandb", save_freq=5),
     # dict(type="PreciseEvaluator", test_last=False),
 ]
 
-# Sculpting params
+
 sculpting_transform = dict(
-    type="TrimmingOcclude",
-    cube_size_min=0.1,
-    cube_size_max=0.4,
-    npoint_frac=6e-4,
-    npoints=None,
+    type="SculptingMaskOcclude",
+    enable_feat_masking=True,
+    mask_size=0.1,
+    mask_ratio=0.1,
     cell_size=0.02,
     density_factor=1.0,
-    kill_color_proba=0.0,
-    sampling="dense",
 )
 
 voxelize_transform = dict(
@@ -35,9 +39,8 @@ voxelize_transform = dict(
     how_to_agg_feats=dict(
         coord="mean",
         color="mean",
-        segment="rand_choice",
-        normal="first",
-        instance="first",
+        normal="mean",
+        mask="max",
     ),
 )
 update_index_keys = dict(
@@ -48,10 +51,7 @@ update_index_keys = dict(
             "grid_coord",
             "color",
             "normal",
-            "superpoint",
-            "strength",
-            "segment",
-            "instance",
+            "mask",
         ]
     },
 )
@@ -78,7 +78,7 @@ sculpting_data_base_configs = dict(
 
 # misc custom setting
 batch_size = 16  # bs: total bs in all gpus
-num_worker = 16
+num_worker = 8
 mix_prob = 0.8
 clip_grad = 3.0
 empty_cache = False
@@ -92,7 +92,7 @@ model = dict(
     backbone=dict(
         type="SpUNet-v1m1",
         in_channels=3,
-        num_classes=2,
+        num_classes=3,
         channels=(32, 64, 128, 256, 256, 128, 96, 96),
         layers=(2, 3, 4, 6, 2, 2, 2, 2),
     ),
@@ -156,7 +156,7 @@ data = dict(
             dict(type="SphereCrop", point_max=120000, mode="random"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
-            # dict(type="ShufflePoint"),
+            dict(type="Copy", keys_dict={"mask": "segment"}),
             dict(type="ToTensor"),
             dict(
                 type="Collect",

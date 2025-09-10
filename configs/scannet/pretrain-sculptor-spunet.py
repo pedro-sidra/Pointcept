@@ -15,15 +15,12 @@ hooks = [
 
 # Sculpting params
 sculpting_transform = dict(
-    type="TrimmingOcclude",
-    cube_size_min=0.1,
-    cube_size_max=0.4,
-    npoint_frac=6e-4,
-    npoints=None,
+    type="SculptingMaskOcclude",
+    enable_feat_masking=False,
+    mask_size=0.1,
+    mask_ratio=0.1,
     cell_size=0.02,
     density_factor=1.0,
-    kill_color_proba=0.0,
-    sampling="dense",
 )
 
 voxelize_transform = dict(
@@ -35,11 +32,11 @@ voxelize_transform = dict(
     how_to_agg_feats=dict(
         coord="mean",
         color="mean",
-        segment="rand_choice",
         normal="first",
-        instance="first",
+        mask="max",
     ),
 )
+
 update_index_keys = dict(
     type="Update",
     keys_dict={
@@ -48,10 +45,7 @@ update_index_keys = dict(
             "grid_coord",
             "color",
             "normal",
-            "superpoint",
-            "strength",
-            "segment",
-            "instance",
+            "mask",
         ]
     },
 )
@@ -78,7 +72,7 @@ sculpting_data_base_configs = dict(
 
 # misc custom setting
 batch_size = 16  # bs: total bs in all gpus
-num_worker = 16
+num_worker = 8
 mix_prob = 0.8
 clip_grad = 3.0
 empty_cache = False
@@ -88,20 +82,33 @@ evaluate = False
 find_unused_parameters = False
 
 model = dict(
-    type="DefaultSegmentor",
+    type="Sculptor-v1m1",
+    # backbone - student & teacher
     backbone=dict(
-        type="SpUNet-v1m1",
+        type="SpUNet-v2m1",
         in_channels=3,
-        num_classes=2,
+        num_classes=0,
         channels=(32, 64, 128, 256, 256, 128, 96, 96),
         layers=(2, 3, 4, 6, 2, 2, 2, 2),
     ),
-    criteria=[dict(type="CrossEntropyLoss", loss_weight=1.0, ignore_index=-100)],
+    head_in_channels=96,
+    head_hidden_channels=256,
+    mask_size_start=0.1,
+    mask_size_base=0.4,
+    mask_size_warmup_ratio=0.05,
+    mask_ratio_start=0.1,
+    mask_ratio_base=0.4,
+    mask_ratio_warmup_ratio=0.05,
+    sculpt_loss_weight=1,
+    reconstruct_loss_weight=0,
+    sculpt_original_point_weight=1,
+    sculpt_block_point_weight=1,
+    sculpt_mask_point_weight=1,
 )
 
 
 # scheduler settings
-epoch = 100
+epoch = 200
 eval_epoch = 100
 optimizer = dict(type="SGD", lr=0.1, momentum=0.8, weight_decay=0.0001, nesterov=True)
 
@@ -131,6 +138,7 @@ data = dict(
         ],
         data_root=data_root,
         transform=[
+            dict(type="Update", keys_dict={"grid_size": 0.02}),
             dict(type="CenterShift", apply_z=True),
             # dict(
             #    type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=0.2
@@ -160,7 +168,7 @@ data = dict(
             dict(type="ToTensor"),
             dict(
                 type="Collect",
-                keys=("coord", "grid_coord", "segment"),
+                keys=("coord", "grid_coord", "mask", "grid_size"),
                 feat_keys=("color",),
             ),
         ],

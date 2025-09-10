@@ -15,15 +15,15 @@ hooks = [
 
 # Sculpting params
 sculpting_transform = dict(
-    type="TrimmingOcclude",
+    type="SculptingOcclude",
     cube_size_min=0.1,
     cube_size_max=0.4,
     npoint_frac=6e-4,
     npoints=None,
     cell_size=0.02,
-    density_factor=1.0,
+    density_factor=0.25,
     kill_color_proba=0.0,
-    sampling="dense",
+    sampling="dense random",
 )
 
 voxelize_transform = dict(

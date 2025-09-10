@@ -1,11 +1,12 @@
 _base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
-batch_size = 2  # bs: total bs in all gpus
-num_worker = 2
-mix_prob = 0
+batch_size = 4  # bs: total bs in all gpus
+num_worker = 4
+mix_prob=0
 empty_cache = False
 enable_amp = False
+# amp_dtype = "bfloat16"
 evaluate = False
 find_unused_parameters = False
 
@@ -83,10 +84,11 @@ data = dict(
         transform=[
             dict(type="CenterShift", apply_z=True),
             dict(type="RandomScale", scale=[0.9, 1.1]),
-            dict(type="Copy", keys_dict={"coord": "original_coord"}),
+            dict(type="Copy", keys_dict={"coord": "origin_coord"}),
+            dict(type="SphereCrop", point_max=150_000, mode="random"),
             dict(
                 type="ContrastiveViewsGenerator",
-                view_keys=("coord", "color", "normal", "original_coord"),
+                view_keys=("coord", "color", "normal", "origin_coord"),
                 view_trans_cfg=[
                     dict(
                         type="RandomRotate",
@@ -108,6 +110,9 @@ data = dict(
                         p=0.8,
                     ),
                     dict(type="ChromaticJitter", p=0.95, std=0.05),
+                    dict(type="Update",
+                         keys_dict={ "index_valid_keys": [ "origin_coord", "coord", "color", "normal" ] }
+                    ),
                     dict(
                         type="GridSample",
                         grid_size=0.02,
@@ -124,12 +129,12 @@ data = dict(
             dict(
                 type="Collect",
                 keys=(
-                    "view1_original_coord",
+                    "view1_origin_coord",
                     "view1_grid_coord",
                     "view1_coord",
                     "view1_color",
                     "view1_normal",
-                    "view2_original_coord",
+                    "view2_origin_coord",
                     "view2_grid_coord",
                     "view2_coord",
                     "view2_color",

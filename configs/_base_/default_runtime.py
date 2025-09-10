@@ -33,7 +33,7 @@ hooks = [
     dict(type="IterationTimer", warmup_iter=2),
     dict(type="InformationWriter"),
     dict(type="SemSegEvaluator"),
-    dict(type="CheckpointSaver", save_freq=None),
+    dict(type="CheckpointSaverWandb", save_freq=5),
     # dict(type="PreciseEvaluator", test_last=False),
 ]
 
@@ -41,4 +41,4 @@ hooks = [
 train = dict(type="DefaultTrainer")
 
 # Tester
-test = dict(type="SemSegTester", verbose=True)
+test = dict(type="SemSegFragmentTester", verbose=True)
