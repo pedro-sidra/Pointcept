@@ -38,9 +38,6 @@ echo "MASTER_ADDR="$MASTER_ADDR
 # ******************************************************************************************
 
 # zoom zoom - recommended from lightning
-# export NCCL_NSOCKS_PERTHREAD=4
-# export NCCL_SOCKET_NTHREADS=2
-# export NCCL_MIN_CHANNELS=32
 
 echo "Run started at:- "
 date
@@ -50,20 +47,18 @@ EXP_NAME=debug/test_multinode
 CONFIG=pipeline-sculpting-spunet
 MACHINES=2
 export DIST_URL=tcp://$MASTER_ADDR:$MASTER_PORT
-# export DIST_URL=file:///workspaces/Pointcept/comms
-    # --rm \
+
+srun mkdir -p $SCRATCH/data && rsync -azP data/scannet $SCRATCH/data
+
 srun docker compose run \
     --rm --remove-orphans \
-    -v $HOME/Pointcept:/workspaces/Pointcept -v $HOME/.netrc:/root/.netrc -v $SCRATCH/exp:/workspaces/Pointcept/exp \
+    -v $HOME/Pointcept:/workspaces/Pointcept -v $HOME/.netrc:/root/.netrc -v $SCRATCH/exp:/workspaces/Pointcept/exp -v $SCRATCH/data/scannet:/workspaces/Pointcept/data/scannet\
     -e GLOO_SOCKET_IFNAME=enp4s0 \
     -e NCCL_SOCKET_IFNAME=enp4s0 \
+	-e NCCL_NSOCKS_PERTHREAD=4 -e NCCL_SOCKET_NTHREADS=2 -e NCCL_MIN_CHANNELS=32 \
     -e SLURM_NODELIST -e SLURM_NODEID  -e DIST_URL  -e WORLD_SIZE  -e MASTER_PORT  -e MASTER_ADDR \
     dev \
     bash scripts/train.sh -g $GPUS -d $DATASET  -m $MACHINES -c $CONFIG -n $EXP_NAME
-    # -p 23450:23450 -p 23451:23451 -p 23452:23452 -p 23453:23453 -p 23454:23454 -p 23455:23455 -p 23456:23456 \
-# -e SLURM_NODEID -e DIST_URL -e WORLD_SIZE -e MASTER_PORT -e MASTER_ADDR \
-# --network host -w "/workspaces/Pointcept" --entrypoint "./docker-entrypoint.sh" \
-    # --shm-size 32gb --gpus all \
 
 echo ""
 echo "################################################################"
