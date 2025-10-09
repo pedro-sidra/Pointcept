@@ -26,22 +26,32 @@ sculpting_transform = dict(
     sampling="dense",
 )
 
+# VoxelizeAgg erro dimensional OACNN
+# voxelize_transform = dict(
+#     type="VoxelizeAgg",
+#     grid_size=0.02,
+#     hash_type="fnv",
+#     mode="train",
+#     return_grid_coord=True,
+#     how_to_agg_feats=dict(
+#         # features
+#         coord="mean",
+#         color="mean",
+#         normal="first",
+#         # Semantic Label
+#         segment="rand_choice",
+#         # Instance label
+#         instance="first",
+#     ),
+# )
+
+# GridSample pra OACNN:
 voxelize_transform = dict(
-    type="VoxelizeAgg",
+    type="GridSample",
     grid_size=0.02,
     hash_type="fnv",
     mode="train",
     return_grid_coord=True,
-    how_to_agg_feats=dict(
-        # features
-        coord="mean",
-        color="mean",
-        normal="first",
-        # Semantic Label
-        segment="rand_choice",
-        # Instance label
-        instance="first",
-    ),
 )
 update_index_keys = dict(
     type="Update",
@@ -80,11 +90,11 @@ sculpting_data_base_configs = dict(
 ## ===== MODEL DEFINITION
 
 # misc custom setting
-batch_size = 16  # bs: total bs in all gpus
+batch_size = 4  # bs: total bs in all gpus (como configs oficiais OACNN)
 num_worker = 16
 mix_prob = 0.8
 clip_grad = 3.0
-empty_cache = False
+empty_cache = True  # Liberar cache pra OACNN
 enable_amp = True
 amp_dtype = "bfloat16"
 evaluate = False
@@ -93,14 +103,21 @@ find_unused_parameters = False
 model = dict(
     type="DefaultSegmentor",
     backbone=dict(
-        type="SpUNet-v1m1",
+        type="OACNNs", # /workspaces/Pointcept/Pointcept/configs/scannetpp/semseg-oacnn-v1m1-0-base.
         in_channels=3,
         num_classes=2,
-        channels=(32, 64, 128, 256, 256, 128, 96, 96),
-        layers=(2, 3, 4, 6, 2, 2, 2, 2),
+        embed_channels=64,
+        enc_channels=[64, 64, 128, 256],
+        groups=[4, 4, 8, 16],
+        enc_depth=[3, 3, 9, 8],
+        dec_channels=[256, 256, 256, 256],
+        point_grid_size=[[8, 12, 16, 16], [6, 9, 12, 12], [4, 6, 8, 8], [3, 4, 6, 6]],
+        dec_depth=[2, 2, 2, 2],
+        enc_num_ref=[16, 16, 16, 16],
     ),
     criteria=[dict(type="CrossEntropyLoss", loss_weight=1.0, ignore_index=-100)],
 )
+
 
 
 # scheduler settings
@@ -152,11 +169,11 @@ data = dict(
             dict(type="ChromaticJitter", p=0.95, std=0.05),
             # dict(type="HueSaturationTranslation", hue_max=0.2, saturation_max=0.2),
             dict(type="RandomColorDrop", p=0.2, color_augment=0.0),
-            dict(type="SphereCrop", point_max=150000, mode="random"),
+            dict(type="SphereCrop", point_max=80000, mode="random"),  # Reduzido  OOM
             update_index_keys,
             sculpting_transform,
             voxelize_transform,
-            dict(type="SphereCrop", point_max=120000, mode="random"),
+            dict(type="SphereCrop", point_max=60000, mode="random"),  # Reduzido  OOM no backward
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
             # dict(type="ShufflePoint"),

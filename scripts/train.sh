@@ -17,6 +17,8 @@ NUM_GPU=None
 NUM_MACHINE=1
 DIST_URL="auto"
 
+# fuser -k $MASTER_PORT/tcp
+
 
 while getopts "p:d:c:n:w:g:m:r:a" opt; do
   case $opt in
@@ -58,10 +60,10 @@ then
   EXP_NAME=$CONFIG
 fi
 
-if [ "${NUM_GPU}" = 'None' ]
-then
-  NUM_GPU=`$PYTHON -c 'import torch; print(torch.cuda.device_count())'`
-fi
+# if [ "${NUM_GPU}" = 'None' ]
+# then
+#   NUM_GPU=`$PYTHON -c 'import torch; print(torch.cuda.device_count())'`
+# fi
 
 if [ "${ARTIFACT}" != 'None' ]
 then
@@ -80,13 +82,18 @@ echo "Machine Num: $NUM_MACHINE"
 #   DIST_URL="auto"
 # fi
 # if [ -n "$SLURM_NODELIST" ]; then
-#   MASTER_HOSTNAME=$(scontrol show hostname "$SLURM_NODELIST" | head -n 1)
-#   MASTER_ADDR=$(getent hosts "$MASTER_HOSTNAME" | awk '{ print $1 }')
-#   MASTER_PORT=$((10000 + 0x$(echo -n "${DATASET}/${EXP_NAME}" | md5sum | cut -c 1-4 | awk '{print $1}') % 20000))
+#   # MASTER_HOSTNAME=$(scontrol show hostname "$SLURM_NODELIST" | head -n 1)
+#   # MASTER_ADDR=$(getent hosts "$MASTER_ADDR" | awk '{ print $1 }')
+#   MASTER_PORT=$((23450 + 0x$(echo -n "${DATASET}/${EXP_NAME}" | md5sum | cut -c 1-4 | awk '{print $1}') % 6))
 #   DIST_URL=tcp://$MASTER_ADDR:$MASTER_PORT
 # fi
 
+# echo $DIST_URL $SLURM_PROCID $SLURM_JOBID $SLURM_NODEID > /workspaces/Pointcept/worker_log
 echo "Dist URL: $DIST_URL"
+echo "MASTER_PORT"=$MASTER_PORT
+echo "WORLD_SIZE="$WORLD_SIZE
+echo "MASTER_ADDR="$MASTER_ADDR
+echo "nodeid=$SLURM_NODEID"
 
 EXP_DIR=exp/${DATASET}/${EXP_NAME}
 MODEL_DIR=${EXP_DIR}/model

@@ -22,7 +22,6 @@ services:
     volumes:
       - .:/workspaces/Pointcept
       - $HOME/.netrc:/root/.netrc
-      - $HOME/.bash_history:/root/.bash_history
       - $HOME/Pointcept:/workspaces/Pointcept
       - $SCRATCH/exp:/workspaces/Pointcept/exp 
       - $SCRATCH/data/scannet:/workspaces/Pointcept/data/scannet
