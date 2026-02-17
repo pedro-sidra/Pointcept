@@ -276,24 +276,12 @@ class SculptingMaskOcclude(object):
         min_coord = np.min(coord, axis=0)
         grid_coord = ((coord - min_coord) // MASK_SIZE).astype(np.int32)
 
-        # # get voxel ids
-        # unique_cells, clusters = torch.unique(
-        #     torch.tensor(grid_coord), dim=0, return_inverse=True
-        # )
-
-        # Hash of the grid coords -> to group the unique voxel coords
-        key = self.hash(grid_coord)
-        idx_sort = np.argsort(key)
-        key_sort = key[idx_sort]
-
-        # unique values of the key
-        # inverse: mapping from points to voxels (p2v_map)
-        # count: points per voxel
-        unique_cells, clusters = np.unique(
-            key_sort,
-            return_inverse=True,
+        # get voxel ids(torch impl)
+        unique_cells, clusters = torch.unique(
+            torch.tensor(grid_coord), dim=0, return_inverse=True
         )
-        unique_cells = grid_coord[idx_sort][clusters]
+        unique_cells=unique_cells.numpy()
+        clusters=clusters.numpy()
 
         # Pick cells for masking
         ncells = unique_cells.shape[0]

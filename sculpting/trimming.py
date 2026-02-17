@@ -10,17 +10,17 @@ from .sculpting_ops import (
 from copy import deepcopy
 
 
-from perlyn import (
-    generate_fractal_noise,
-    generate_perlin_noise,
-)
+#from perlyn import (
+#    generate_fractal_noise,
+#    generate_perlin_noise,
+#)
 
-# from perlin_numpy import (
-#     generate_fractal_noise_2d,
-#     generate_fractal_noise_3d,
-#     generate_perlin_noise_2d,
-#     generate_perlin_noise_3d,
-# )
+from perlin_numpy import (
+    generate_fractal_noise_2d,
+    generate_fractal_noise_3d,
+    generate_perlin_noise_2d,
+    generate_perlin_noise_3d,
+)
 
 import pointcept.datasets.transform as transform
 from pointcept.utils.registry import Registry
@@ -30,7 +30,7 @@ from .sculpting import SculptingOcclude
 
 # TRANSFORMS = Registry("transforms")
 def get_perlin(noise_num_cells, noise_cell_size):
-    noise = generate_perlin_noise(
+    noise = generate_perlin_noise_3d(
         noise_num_cells, # need to get multiple of 2
           (2, 2, 2), tileable=(False, False, False)
     )
