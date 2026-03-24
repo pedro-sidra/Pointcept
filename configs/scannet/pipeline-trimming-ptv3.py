@@ -78,8 +78,8 @@ sculpting_data_base_configs = dict(
 ## ===== MODEL DEFINITION
 
 # misc custom setting
-batch_size = 6  # bs: total bs in all gpus
-num_worker = 6
+batch_size = 12  # bs: total bs in all gpus
+num_worker = 12
 mix_prob = 0
 clip_grad = 3.0
 empty_cache = False

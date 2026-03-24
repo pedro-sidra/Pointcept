@@ -18,7 +18,7 @@ sculpting_transform = dict(
     type="TrimmingOcclude",
     cube_size_min=0.1,
     cube_size_max=0.4,
-    npoint_frac=6e-4,
+    npoint_frac=6e-3,
     npoints=None,
     cell_size=0.02,
     density_factor=1.0,
@@ -33,13 +33,10 @@ voxelize_transform = dict(
     mode="train",
     return_grid_coord=True,
     how_to_agg_feats=dict(
-        # features
         coord="mean",
         color="mean",
-        normal="first",
-        # Semantic Label
         segment="rand_choice",
-        # Instance label
+        normal="first",
         instance="first",
     ),
 )

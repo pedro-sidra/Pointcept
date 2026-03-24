@@ -78,7 +78,7 @@ sculpting_data_base_configs = dict(
 
 # misc custom setting
 batch_size = 12  # bs: total bs in all gpus
-num_worker = 12
+num_worker = 24
 mix_prob = 0
 clip_grad = 3.0
 empty_cache = False
@@ -127,7 +127,7 @@ model = dict(
     ),
     criteria=[
         dict(type="CrossEntropyLoss", loss_weight=1.0, ignore_index=-1),
-        dict(type="LovaszLoss", mode="multiclass", loss_weight=1.0, ignore_index=-1),
+        #dict(type="LovaszLoss", mode="multiclass", loss_weight=1.0, ignore_index=-1),
     ],
 )
 

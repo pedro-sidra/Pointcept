@@ -6,8 +6,8 @@ Dataset: ScanNet v2, ScanNet++, S3DIS, HM3D, ArkitScene, Structured3D
 _base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
-batch_size = 4  # bs: total bs in all gpus
-num_worker = 4
+batch_size = 2  # bs: total bs in all gpus
+num_worker = 2
 mix_prob = 0
 clip_grad = 3.0
 empty_cache = False
@@ -45,9 +45,9 @@ model = dict(
     teacher_temp_base=0.07,
     teacher_temp_warmup_ratio=0.05,
     student_temp=0.1,
-    mask_loss_weight=0 / 12,
-    roll_mask_loss_weight=0 / 12,
-    unmask_loss_weight=0 / 12,
+    mask_loss_weight=2 / 12,
+    roll_mask_loss_weight=2 / 12,
+    unmask_loss_weight=4 / 12,
     sculpt_loss_weight=4 / 12,
     momentum_base=0.994,
     momentum_final=1,
@@ -116,7 +116,6 @@ voxelize_transform = dict(
 
 transform = [
     update_index_keys,
-    dict(type="SphereCrop", point_max=150_000, mode="random"),
     sculpting_transform,
     voxelize_transform,
     # dict(type="GridSample", grid_size=0.02, hash_type="fnv", mode="train"),
